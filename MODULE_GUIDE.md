@@ -33,8 +33,20 @@ Before you start creating and developing modules, set up the project's virtual e
 
 ## 1. Quick Start
 
-The fastest way to create a new module is the built-in CLI scaffolder. Run this from the **root of the MirrorDash project**:
+The fastest way to create a new module is the CLI scaffolder. 
 
+### Running without cloning (via `uvx` / `uv tool run`)
+If you use `uv`, you don't even need to download the SDK repository manually. You can run the scaffolder directly from PyPI:
+```bash
+uvx mirrordash-cli create-module mirrordash-my-widget --description "My custom widget"
+```
+Or run it directly from the Git repository:
+```bash
+uvx --from git+https://github.com/menturan/mirrordash-sdk.git mirrordash-cli create-module mirrordash-my-widget --description "My custom widget"
+```
+
+### Running with local installation
+If you have installed the SDK package (e.g. in editable mode from source), you can run it directly:
 ```bash
 mirrordash-cli create-module mirrordash-my-widget --description "My custom widget"
 ```

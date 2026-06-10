@@ -8,23 +8,31 @@ This repository contains the developer command-line interface (`mirrordash-cli`)
 - **`MODULE_AGENTS.md`**: Guide and constraints for AI coding agents developing MirrorDash modules.
 - **`mirrordash_sdk/`**: Python source code for the bootstrapping utility.
 
-## Installation
+## Installation & Running
 
-Install in editable mode in your development environment:
+You can run the CLI tool without cloning the repository using `uvx` (part of the `uv` toolchain):
 
 ```bash
-uv pip install -e .
+# Run directly from PyPI
+uvx mirrordash-cli create-module mirrordash-my-widget --description "A custom widget"
+
+# Or run directly from Git
+uvx --from git+https://github.com/menturan/mirrordash-sdk.git mirrordash-cli create-module mirrordash-my-widget --description "A custom widget"
 ```
 
-Or install it globally:
+### Local Development Installation
+
+If you are developing the SDK itself or prefer a local installation:
 
 ```bash
+# Install in editable mode
+uv pip install -e .
+
+# Or install from local path
 uv pip install /path/to/mirrordash-sdk
 ```
 
-## Usage
-
-Bootstrap a new custom module:
+After local installation, run it directly:
 
 ```bash
 mirrordash-cli create-module mirrordash-my-widget --description "A custom widget"
