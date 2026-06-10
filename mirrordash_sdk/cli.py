@@ -4,7 +4,7 @@ import re
 import sys
 from pathlib import Path
 
-# Get project root (parent directory of mymm_core)
+# Get project root (parent directory of mirrordash_core)
 ROOT_DIR = Path(__file__).parent.parent.resolve()
 
 def main():
