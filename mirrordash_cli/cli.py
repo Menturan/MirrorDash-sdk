@@ -39,8 +39,11 @@ def create_module(name: str, description: str, author: str):
         print(f"Error: Invalid module name '{name}'. Only alphanumeric characters, hyphens, and underscores are allowed.", file=sys.stderr)
         sys.exit(1)
         
+    cwd_modules_dir = Path.cwd() / "modules"
     modules_dir = ROOT_DIR / "modules"
-    if modules_dir.exists() and modules_dir.is_dir():
+    if cwd_modules_dir.exists() and cwd_modules_dir.is_dir():
+        target_dir = cwd_modules_dir / folder_name
+    elif modules_dir.exists() and modules_dir.is_dir():
         target_dir = modules_dir / folder_name
     else:
         target_dir = Path.cwd() / folder_name
