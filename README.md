@@ -1,4 +1,4 @@
-# MirrorDash Developer CLI & Tools
+# MirrorDash Developer SDK & Tools
 
 This repository contains the developer command-line interface (`mirrordash-cli`) and documentation for bootstrapping and developing custom modules for the MirrorDash ambient display platform.
 
@@ -6,7 +6,7 @@ This repository contains the developer command-line interface (`mirrordash-cli`)
 
 - **`MODULE_GUIDE.md`**: Detailed API guide, translations, templates, and storage conventions for module development.
 - **`MODULE_AGENTS.md`**: Guide and constraints for AI coding agents developing MirrorDash modules.
-- **`mirrordash_cli/`**: Python source code for the bootstrapping utility.
+- **`mirrordash_sdk/`**: Python source code for the bootstrapping utility.
 
 ## Installation
 
@@ -19,7 +19,7 @@ uv pip install -e .
 Or install it globally:
 
 ```bash
-uv pip install /path/to/mirrordash-cli
+uv pip install /path/to/mirrordash-sdk
 ```
 
 ## Usage
