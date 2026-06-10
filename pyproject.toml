@@ -1,5 +1,5 @@
 [project]
-name = "mirrordash-sdk"
+name = "mirrordash-cli"
 version = "0.1.0"
 description = "Developer CLI and tools for bootstrapping MirrorDash modules"
 readme = "README.md"
