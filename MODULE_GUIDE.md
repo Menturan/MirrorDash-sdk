@@ -123,6 +123,13 @@ class MyWidgetModule:
 
 If you define a **synchronous** `run_loop` (no `async`), the core loader will automatically run it in a background thread so it won't block the event loop. Sync mode is fine for simple modules, but async is recommended.
 
+### Crash Recovery
+
+To ensure high ambient reliability, the MirrorDash backend runs each module's `run_loop` inside an auto-restarting recovery wrapper (`run_with_recovery`).
+- **Auto-restart**: If your module throws an unhandled exception inside its run loop, it will be automatically restarted.
+- **Exponential Backoff**: To protect resources and prevent infinite crash loops, restarts delay by an exponential backoff starting at `5` seconds, doubling on each subsequent crash (`10s`, `20s`, `40s`, etc.), up to a maximum delay cap of `300` seconds (5 minutes).
+- **Backoff Reset**: The backoff delay resets back to `5` seconds once the module runs successfully without crashing.
+
 ### Global Settings
 
 The core loader automatically injects a `globals` dictionary into the module's `config` parameter under the `"globals"` key. This dictionary contains system-wide configuration preferences (configured in the Admin Dashboard or `config.json`) that all modules can fall back to.
@@ -205,13 +212,19 @@ When rendering templates, `translations` is **automatically injected** into your
 
 #### Using Translations in Python Code
 
-If you need a translated string inside your Python loop, use the injected `self.translate()` helper:
+If you need a translated string inside your Python loop, use the injected `self.translate(key, default=None)` helper:
 
 ```python
 def run_loop(self, broadcast_func):
     status_label = self.translate("last_checked", "Checked")
     logger.info(f"Using translation: {status_label}")
 ```
+
+> [!NOTE]
+> **Fallback Behavior**:
+> - If the translation key exists in active/fallback language files, the translated string is returned.
+> - If the key is missing and a `default` is specified, it returns the `default` value.
+> - If the key is missing and `default` is `None` (or omitted), it falls back to returning the `key` string itself (e.g., `self.translate("my_key")` returns `"my_key"`).
 
 ---
 
@@ -255,6 +268,12 @@ async def run_loop(self, broadcast_func):
         await broadcast_func(self.name, html)
         await asyncio.sleep(self.interval)
 ```
+
+#### Auto-injected Context Variables
+
+When you invoke `self.render_template(template_name, **context)`, the core loader automatically injects the following context variables for you:
+- **`translations`**: The merged dictionary containing localized strings for the current active language (merged over the fallback English base).
+- **`show_header`**: A boolean (`True` or `False`) reflecting whether the user wants this module's header shown on the screen (defaults to `True`). You should use this to conditionally render your header (e.g., `{% if show_header %}<h2 class="module-header label-caps">{{ translations.get("title") }}</h2>{% endif %}`).
 
 ### Inline template (quick & simple)
 
