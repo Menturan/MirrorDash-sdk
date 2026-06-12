@@ -78,7 +78,7 @@ def create_module(name: str, description: str, author: str, dry_run: bool = Fals
 name = "{folder_name}"
 version = "0.1.0"
 description = "{description}"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 authors = [
     {{ name = "{author}" }}
 ]
