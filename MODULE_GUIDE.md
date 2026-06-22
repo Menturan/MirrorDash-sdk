@@ -417,6 +417,45 @@ To make designing widgets as fast and simple as possible, MirrorDash runs an int
 | `.module-header` | Small uppercase section title (`<h2>`) |
 | `.text-secondary` | Supporting metadata, labels |
 
+### Zero-CSS Layout Utilities
+
+To lower the learning curve for developers who are unexperienced with CSS, MirrorDash provides pre-built layout helpers in the core stylesheet. You can construct clean, responsive, and perfectly aligned widgets simply by nesting standard classes:
+
+*   **`.flex-row`**: Horizontally aligns items, centers them vertically, and applies a standard `8px` gap. Perfect for aligning an icon next to text.
+*   **`.flex-row-between`**: A horizontal row that stretches to `100%` width and pushes children to the far left and right edges (using `justify-content: space-between`). Ideal for label-value or status telemetry rows.
+*   **`.flex-column`**: Stacks elements vertically with a standard `8px` gap. Perfect for standard widget layout stack blocks.
+*   **`.flex-center`**: Centers child elements both horizontally and vertically.
+
+#### Example Layouts
+
+1. **Header + Data List (Telemetry Widget)**:
+   ```html
+   <div data-module="sensor-status">
+       <h2 class="module-header">Sensor Panel</h2>
+       <div class="flex-column" style="gap: 4px;">
+           <div class="flex-row-between">
+               <span class="text-secondary">Battery</span>
+               <span class="text-primary">84%</span>
+           </div>
+           <div class="flex-row-between">
+               <span class="text-secondary">WiFi strength</span>
+               <span class="text-primary">-62 dBm</span>
+           </div>
+       </div>
+   </div>
+   ```
+
+2. **Large Telemetry Display (with aligned Icon)**:
+   ```html
+   <div data-module="ambient-temp">
+       <h2 class="module-header">Living Room</h2>
+       <div class="flex-row">
+           <i data-lucide="thermometer" class="text-primary"></i>
+           <span class="display-lg">21.5°</span>
+       </div>
+   </div>
+   ```
+
 ### Iconography & Vectors
 The system uses **Lucide Icons** as its standard, vector-based line-art iconography.
 - **Icon Search/Catalog:** Developers can search and find all available icons at [lucide.dev/icons](https://lucide.dev/icons).
