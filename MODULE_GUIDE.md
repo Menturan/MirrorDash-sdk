@@ -398,6 +398,12 @@ class MyWidgetModule:
 
 Keep the Ethereal Mirror aesthetic — high contrast on pure black, glanceable at a distance.
 
+### Live Design System Explorer
+
+To make designing widgets as fast and simple as possible, MirrorDash runs an interactive **Design System Explorer** kitchen-sink:
+* **Endpoint**: Served at `http://localhost:8000/design` when the development server is running.
+* **Features**: Live interactive previews of styling tokens, typography scales, layout wrappers, and copy-pasteable CSS/HTML markups matching the Ethereal Design System.
+
 ### Colors
 - **Primary data** (time, key values): `#ffffff` / `var(--mirror-primary)`
 - **Labels & secondary text**: `#999999` / `var(--mirror-secondary)`

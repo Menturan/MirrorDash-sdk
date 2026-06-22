@@ -7,6 +7,7 @@ This repository contains the developer command-line interface (`mirrordash-cli`)
 - **`MODULE_GUIDE.md`**: Detailed API guide, translations, templates, and storage conventions for module development.
 - **`MODULE_AGENTS.md`**: Guide and constraints for AI coding agents developing MirrorDash modules.
 - **`mirrordash_sdk/`**: Python source code for the bootstrapping utility.
+- **Design System Explorer**: Served at `http://localhost:8000/design` when the server is running locally. It provides a live components catalog with copyable styling blocks and templates matching the Ethereal Design System.
 
 ## Installation & Running
 
