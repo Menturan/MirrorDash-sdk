@@ -8,6 +8,23 @@
 > Your module broadcasts HTML via `broadcast_func`. Use `self.data_dir` for persistent files,
 > `self.cache_dir` for temporary files. Add a `config_schema` dict to enable the Admin UI form.
 
+## Table of Contents
+
+- [0. Development Environment Setup](#0-development-environment-setup)
+- [1. Quick Start](#1-quick-start)
+- [2. Plugin Class](#2-plugin-class)
+- [3. File Storage](#3-file-storage)
+- [4. HTML Templates (Jinja2)](#4-html-templates-jinja2)
+- [5. Inter-Module Communication (Event Bus)](#5-inter-module-communication-event-bus)
+- [6. Config Schema (Admin UI)](#6-config-schema-admin-ui)
+- [7. Styling Guidelines](#7-styling-guidelines)
+- [8. Building & Publishing](#8-building--publishing)
+- [9. Documentation Guidelines (`README.md`)](#9-documentation-guidelines-readmemd)
+- [10. Installing on the Device](#10-installing-on-the-device)
+- [Appendix: Architecture Overview](#appendix-architecture-overview)
+
+---
+
 ## 0. Development Environment Setup
 
 Before you start creating and developing modules, set up the project's virtual environment and install the core dependencies using `uv`:
@@ -407,6 +424,16 @@ The system uses **Lucide Icons** as its standard, vector-based line-art iconogra
 - **Avoid Fixed Widths**: Never use hardcoded pixel widths (`width: 90px`, `width: 110px`, etc.) for lists, columns, or layout elements. Other languages (like Swedish or German) can have words or date formats that are much longer than English, which will cause layouts to break or overlap.
 - **Use Flexible Sizing**: Build layout containers using flexbox or CSS Grid with flexible sizing (`flex: 1`, `min-width: 0`, `max-content`).
 - **Handle Overflow Gracefully**: Apply truncation utilities (`text-overflow: ellipsis`, `overflow: hidden`, `white-space: nowrap`) to text fields to gracefully handle long localized text.
+
+### Browser Target & Engine Compatibility
+
+The MirrorDash kiosk display uses **Cog (WPE WebKit)** as its renderer, rather than Chromium/Blink.
+- **Engine**: WPE WebKit.
+- **Compatibility Focus**: Because the production browser is WebKit-based, module developers must ensure their HTML, CSS, and JS do not rely on Chromium-only or bleeding-edge experimental APIs (such as Chromium-specific `chrome.*` APIs, custom scrollbar styling, or non-standard experimental CSS layout engines).
+- **Recommendations**:
+  - Stick to standard HTML5, CSS Grid/Flexbox, and modern standards-compliant ES6+ features.
+  - Test custom stylesheets and script features against WebKit behaviors.
+  - Avoid heavy JavaScript frameworks; utilize vanilla JS to maintain WPE WebKit's high-performance rendering.
 
 ---
 
