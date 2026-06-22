@@ -29,6 +29,68 @@ This creates a fully configured module skeleton containing:
 
 ---
 
+## 🛠️ How to Set Up & Develop Locally
+
+To develop modules and test them in real-time, you need to run the core MirrorDash application (`mymagicmirror`) locally on your machine.
+
+### Step 1: Clone the Core Repository
+Clone the core application (`mymagicmirror`) into a folder next to your modules directory:
+```bash
+git clone https://github.com/menturan/mymagicmirror.git
+cd mymagicmirror
+```
+
+### Step 2: Set Up the Virtual Environment
+Create and activate the virtual environment inside the `mymagicmirror` directory:
+```bash
+# Create the virtual environment
+uv venv
+
+# Activate it
+source .venv/bin/activate
+```
+
+### Step 3: Scaffold Your Module
+Run the SDK scaffolder to create your module (e.g. inside a `modules/` subdirectory of the core repo, or anywhere else on your machine):
+```bash
+# Run the SDK CLI to create the module
+uvx mirrordash-cli create-module mirrordash-my-widget --description "A custom widget"
+```
+
+### Step 4: Install Your Module in Editable Mode
+Install the core application and your new module in editable mode inside the `mymagicmirror` virtual environment:
+```bash
+# First, install the core app itself
+uv pip install -e .
+
+# Then, install your custom module in editable mode (provide the path to your module directory)
+uv pip install -e ../modules/mirrordash-my-widget
+```
+
+### Step 5: Enable the Module in Config
+Add the module to your local configuration file `mymagicmirror/config.json`:
+```json
+{
+  "modules": {
+    "mirrordash-my-widget": {
+      "enabled": true,
+      "position": "top_left",
+      "interval": 60
+    }
+  }
+}
+```
+*(Alternatively, configure it visually by opening the Admin Dashboard at `http://localhost:8000/admin` once the server starts).*
+
+### Step 6: Start the Development Server
+Run the local dev server inside the `mymagicmirror` directory:
+```bash
+python mirrordash_core/main.py
+```
+Open `http://localhost:8000/` in your browser to view the mirror display. Edit your module's HTML, CSS, or Python files, and they will hot-reload on the next refresh/server restart!
+
+---
+
 ## ✨ Features & Bells
 
 * **🚀 Hot-Reload Dev Setup**: Develop widgets locally in editable mode—changes reload instantly on server restart.

@@ -27,24 +27,44 @@
 
 ## 0. Development Environment Setup
 
-Before you start creating and developing modules, set up the project's virtual environment and install the core dependencies using `uv`:
+To develop and test modules locally, you need to run the core MirrorDash application (`mymagicmirror`) on your development machine. The SDK CLI (`mirrordash-cli`) scaffolds module packages, but the execution runtime resides in the core app.
 
-1. **Create the virtual environment**:
-   ```bash
-   uv venv
-   ```
-2. **Activate the virtual environment**:
-   ```bash
-   source .venv/bin/activate
-   ```
-3. **Install the core application and standard modules** in editable mode:
-   ```bash
-   uv pip install -e . -e ./modules/mirrordash-clock -e ./modules/mirrordash-calendar -e ./modules/mirrordash-weather
-   ```
-4. **Start the local mirror development server**:
-   ```bash
-   python mirrordash_core/main.py
-   ```
+Follow these steps to set up a side-by-side development environment:
+
+1.  **Clone the Core Application**:
+    Clone the core `mymagicmirror` repository next to your SDK directory:
+    ```bash
+    git clone https://github.com/menturan/mymagicmirror.git
+    cd mymagicmirror
+    ```
+
+2.  **Create and Activate a Virtual Environment**:
+    Create a virtual environment inside the `mymagicmirror` directory:
+    ```bash
+    uv venv
+    source .venv/bin/activate
+    ```
+
+3.  **Install Core App and Modules in Editable Mode**:
+    Install the core app itself along with standard modules in editable mode:
+    ```bash
+    uv pip install -e . -e ./modules/mirrordash-clock -e ./modules/mirrordash-calendar -e ./modules/mirrordash-weather
+    ```
+
+4.  **Install Your Custom Module**:
+    Install your newly scaffolded custom module in editable mode inside the `mymagicmirror` virtual environment:
+    ```bash
+    uv pip install -e /path/to/modules/mirrordash-my-widget
+    ```
+
+5.  **Start the Local Mirror Development Server**:
+    Start the local Uvicorn development server:
+    ```bash
+    python mirrordash_core/main.py
+    ```
+    *   Mirror Display: `http://localhost:8000/`
+    *   Admin Dashboard: `http://localhost:8000/admin`
+    *   Design Explorer: `http://localhost:8000/design`
 
 ---
 
