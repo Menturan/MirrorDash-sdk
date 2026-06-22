@@ -27,40 +27,37 @@
 
 ## 0. Development Environment Setup
 
-To develop and test modules locally, you need to run the core MirrorDash application (`mymagicmirror`) on your development machine. The SDK CLI (`mirrordash-cli`) scaffolds module packages, but the execution runtime resides in the core app.
+To develop and test modules locally, you need to run the core MirrorDash application (`mirrordash`) on your development machine. The SDK CLI (`mirrordash-cli`) scaffolds module packages, but the execution runtime resides in the core application.
 
-Follow these steps to set up a side-by-side development environment:
+Follow these steps to set up your local development environment:
 
-1.  **Clone the Core Application**:
-    Clone the core `mymagicmirror` repository next to your SDK directory:
-    ```bash
-    git clone https://github.com/menturan/mymagicmirror.git
-    cd mymagicmirror
-    ```
-
-2.  **Create and Activate a Virtual Environment**:
-    Create a virtual environment inside the `mymagicmirror` directory:
+1.  **Create and Activate a Virtual Environment**:
+    Create a virtual environment in your workspace and activate it:
     ```bash
     uv venv
     source .venv/bin/activate
     ```
 
-3.  **Install Core App and Modules in Editable Mode**:
-    Install the core app itself along with standard modules in editable mode:
+2.  **Install the Core MirrorDash Application**:
+    Install the core `mirrordash` package directly from PyPI (or from the official Git repository):
     ```bash
-    uv pip install -e . -e ./modules/mirrordash-clock -e ./modules/mirrordash-calendar -e ./modules/mirrordash-weather
+    # Install from PyPI
+    uv pip install mirrordash
+
+    # OR: Install from the official Git repository
+    uv pip install git+https://github.com/Menturan/MirrorDash.git
     ```
 
-4.  **Install Your Custom Module**:
-    Install your newly scaffolded custom module in editable mode inside the `mymagicmirror` virtual environment:
+3.  **Install Your Custom Module in Editable Mode**:
+    Install your newly scaffolded custom module in editable mode inside the active virtual environment:
     ```bash
     uv pip install -e /path/to/modules/mirrordash-my-widget
     ```
 
-5.  **Start the Local Mirror Development Server**:
+4.  **Start the Local Mirror Development Server**:
     Start the local Uvicorn development server:
     ```bash
-    python mirrordash_core/main.py
+    python -m mirrordash_core.main
     ```
     *   Mirror Display: `http://localhost:8000/`
     *   Admin Dashboard: `http://localhost:8000/admin`

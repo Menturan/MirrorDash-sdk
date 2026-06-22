@@ -31,17 +31,10 @@ This creates a fully configured module skeleton containing:
 
 ## 🛠️ How to Set Up & Develop Locally
 
-To develop modules and test them in real-time, you need to run the core MirrorDash application (`mymagicmirror`) locally on your machine.
+To develop modules and test them in real-time, you can install the core MirrorDash application (`mirrordash`) directly into a local Python virtual environment. **You do not need to clone the core repository.**
 
-### Step 1: Clone the Core Repository
-Clone the core application (`mymagicmirror`) into a folder next to your modules directory:
-```bash
-git clone https://github.com/menturan/mymagicmirror.git
-cd mymagicmirror
-```
-
-### Step 2: Set Up the Virtual Environment
-Create and activate the virtual environment inside the `mymagicmirror` directory:
+### Step 1: Set Up a Virtual Environment
+Create and activate a virtual environment in your development workspace:
 ```bash
 # Create the virtual environment
 uv venv
@@ -50,25 +43,32 @@ uv venv
 source .venv/bin/activate
 ```
 
-### Step 3: Scaffold Your Module
-Run the SDK scaffolder to create your module (e.g. inside a `modules/` subdirectory of the core repo, or anywhere else on your machine):
+### Step 2: Install the Core MirrorDash Application
+Install the core application directly from PyPI (or from the official Git repository if you need the latest development builds):
 ```bash
-# Run the SDK CLI to create the module
+# Install from PyPI
+uv pip install mirrordash
+
+# OR: Install from the official Git repository
+uv pip install git+https://github.com/Menturan/MirrorDash.git
+```
+
+### Step 3: Scaffold Your Module
+Use the SDK command-line tool to bootstrap a new custom module directory:
+```bash
+# Scaffold the module
 uvx mirrordash-cli create-module mirrordash-my-widget --description "A custom widget"
 ```
 
 ### Step 4: Install Your Module in Editable Mode
-Install the core application and your new module in editable mode inside the `mymagicmirror` virtual environment:
+Install your custom module into the active virtual environment in **editable mode** (`-e`). This tells Python to link directly to your source files, so any modifications to your templates or scripts take effect immediately:
 ```bash
-# First, install the core app itself
-uv pip install -e .
-
-# Then, install your custom module in editable mode (provide the path to your module directory)
-uv pip install -e ../modules/mirrordash-my-widget
+# Install in editable mode
+uv pip install -e ./mirrordash-my-widget
 ```
 
-### Step 5: Enable the Module in Config
-Add the module to your local configuration file `mymagicmirror/config.json`:
+### Step 5: Enable Your Module in local Configuration
+Your local MirrorDash settings are stored automatically at `~/.mirrordash/data/config.json`. Enable your widget and assign its screen position in the configuration:
 ```json
 {
   "modules": {
@@ -82,12 +82,12 @@ Add the module to your local configuration file `mymagicmirror/config.json`:
 ```
 *(Alternatively, configure it visually by opening the Admin Dashboard at `http://localhost:8000/admin` once the server starts).*
 
-### Step 6: Start the Development Server
-Run the local dev server inside the `mymagicmirror` directory:
+### Step 6: Start the MirrorDash Server
+Run the core MirrorDash server from your active virtual environment:
 ```bash
-python mirrordash_core/main.py
+python -m mirrordash_core.main
 ```
-Open `http://localhost:8000/` in your browser to view the mirror display. Edit your module's HTML, CSS, or Python files, and they will hot-reload on the next refresh/server restart!
+Open `http://localhost:8000/` in your browser to view the live mirror HUD. Open `http://localhost:8000/design` to view the Design System Explorer. When you edit your module's Python or template files, changes will reload hot!
 
 ---
 
