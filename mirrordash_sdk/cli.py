@@ -127,19 +127,15 @@ packages = ["{package_name}"]
       "type": "string",
       "default": "middle_center",
       "enum": [
-        "top_bar",
         "top_left",
         "top_center",
         "top_right",
-        "upper_third",
         "middle_left",
         "middle_center",
         "middle_right",
-        "lower_third",
         "bottom_left",
         "bottom_center",
-        "bottom_right",
-        "bottom_bar"
+        "bottom_right"
       ],
       "title": "Screen Position",
       "description": "Where to display this module on the mirror screen."
@@ -549,14 +545,14 @@ def validate_module(path_str: str):
             # Check positions enum
             pos_prop = properties.get("position", {})
             enum_vals = pos_prop.get("enum", [])
-            expected_positions = ["top_bar", "top_left", "top_center", "top_right", "upper_third", "middle_left", "middle_center", "middle_right", "lower_third", "bottom_left", "bottom_center", "bottom_right", "bottom_bar"]
+            expected_positions = ["top_left", "top_center", "top_right", "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right"]
             missing_positions = [pos for pos in expected_positions if pos not in enum_vals]
             if missing_positions:
                 print(f"  [!] Warning: config_schema position enum only contains {len(enum_vals)} positions.")
                 print(f"      Missing: {missing_positions}")
                 has_warnings = True
             else:
-                print("  [✓] config_schema position enum supports all 13 MirrorDash positions")
+                print("  [✓] config_schema position enum supports all 9 MirrorDash positions")
 
         # Check templates/widget.html
         templates_dir = package_dir / "templates"
