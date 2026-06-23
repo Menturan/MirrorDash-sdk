@@ -31,48 +31,36 @@ This creates a fully configured module skeleton containing:
 
 ## 🛠️ How to Set Up & Develop Locally
 
-To develop modules and test them in real-time, you can install the core MirrorDash application (`mirrordash`) directly into a local Python virtual environment. **You do not need to clone the core repository.**
+To develop modules and test them in real-time, you can set up a local development virtual environment and run the MirrorDash server easily with the CLI.
 
-### Step 1: Set Up a Virtual Environment
-Create and activate a virtual environment in your development workspace:
+### Step 1: Set Up a Virtual Environment & Core App
+Run the developer setup tool in your development workspace directory:
 ```bash
-# Create the virtual environment
-uv venv
-
-# Activate it
-source .venv/bin/activate
+# Auto-creates .venv and installs MirrorDash core inside it
+uvx mirrordash-cli dev-setup
 ```
 
-### Step 2: Install the Core MirrorDash Application
-Install the core application directly from PyPI (or from the official Git repository if you need the latest development builds):
-```bash
-# Install from PyPI
-uv pip install mirrordash
-
-# OR: Install from the official Git repository
-uv pip install git+https://github.com/Menturan/MirrorDash.git
-```
-
-### Step 3: Scaffold Your Module
+### Step 2: Scaffold Your Module
 Use the SDK command-line tool to bootstrap a new custom module directory:
 ```bash
 # Scaffold the module
 uvx mirrordash-cli create-module mirrordash-my-widget --description "A custom widget"
 ```
 
-### Step 4: Register and Enable Your Module
-Use the SDK CLI tool to validate your module, install it in editable mode inside your active virtual environment, and register its default configuration settings in your local `config.json` automatically:
+### Step 3: Register and Enable Your Module
+Validate your module, install it in editable mode inside your virtual environment, and register its default configuration settings in your local `config.json` automatically:
 ```bash
-# Validate, install in editable mode, and enable in config.json
+# Validate, install, and enable in config.json
 uvx mirrordash-cli register ./mirrordash-my-widget
 ```
-*(Alternatively, you can manually install in editable mode with `uv pip install -e ./mirrordash-my-widget` and configure the module key visually via the Admin Dashboard at `http://localhost:8000/admin`).*
 
-### Step 5: Start the MirrorDash Server
-Run the core MirrorDash server from your active virtual environment:
+### Step 4: Start the MirrorDash Server
+Run the core MirrorDash server automatically from your active virtual environment:
 ```bash
-python -m mirrordash_core.main
+uvx mirrordash-cli start
 ```
+*(Or simply run `mirrordash-cli start` if you have activated the virtual environment).*
+
 Open `http://localhost:8000/` in your browser to view the live mirror HUD. Open `http://localhost:8000/design` to view the Design System Explorer. When you edit your module's Python or template files, changes will reload hot!
 
 ---
@@ -94,7 +82,7 @@ Open `http://localhost:8000/` in your browser to view the live mirror HUD. Open 
 
 ---
 
-## 🔧 Local Development & Installation
+## 🔧 Local Development & Command Reference
 
 If you are developing the SDK tool itself or want to install it from source:
 
@@ -103,16 +91,23 @@ If you are developing the SDK tool itself or want to install it from source:
 uv pip install -e .
 ```
 
-Once installed, use the CLI directly:
+Once installed, use the full CLI commands reference:
+
 ```bash
-# Bootstrap a widget
-mirrordash-cli create-module mirrordash-my-widget
+# 1. Dev Environment & Server Management
+mirrordash-cli dev-setup [options]   # Create .venv, install core, and optionally register module
+                                    # Options: -p, --path; --core-git; -e, --editable
+mirrordash-cli start [options]       # Start the MirrorDash local development server
 
-# Validate an existing widget directory structure
-mirrordash-cli validate ./mirrordash-my-widget
+# 2. Scaffolding & Registration
+mirrordash-cli create-module <name>  # Scaffold a new widget directory structure
+mirrordash-cli validate <path>       # Validate an existing widget structure and conformity
+mirrordash-cli register <path>       # Validate, install in editable mode, and enable in config.json
 
-# Register (validate, install in editable mode, and enable in config.json)
-mirrordash-cli register ./mirrordash-my-widget
+# 3. Build & CI/CD Deployment
+mirrordash-cli setup-github <path>   # Generate a GitHub Actions CI/CD workflow (publish.yml)
+mirrordash-cli build <path>          # Build module wheels and source distribution package
+mirrordash-cli publish <path>        # Run validation and upload package to PyPI
 ```
 
 > [!IMPORTANT]

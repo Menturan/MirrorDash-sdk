@@ -4,7 +4,15 @@ version = "0.1.0"
 description = "Developer CLI and tools for bootstrapping MirrorDash modules"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "click>=8.0.0"
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-mock>=3.14.0"
+]
 
 [project.scripts]
 mirrordash-cli = "mirrordash_sdk.cli:main"

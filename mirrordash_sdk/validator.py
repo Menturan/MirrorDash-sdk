@@ -1,0 +1,245 @@
+import json
+import sys
+from pathlib import Path
+
+def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
+    try:
+        import tomllib
+    except ImportError:
+        print("Error: tomllib is required (Python 3.11+). Please run with Python 3.11 or newer.", file=sys.stderr)
+        if exit_on_fail:
+            sys.exit(1)
+        return False
+
+    path = Path(path_str).resolve()
+    print(f"Validating module at: {path}\n")
+
+    pyproject_path = path / "pyproject.toml"
+    if not pyproject_path.exists():
+        print(f"  [✗] pyproject.toml not found. Is this a Python project directory?", file=sys.stderr)
+        if exit_on_fail:
+            sys.exit(1)
+        return False
+
+    has_errors = False
+    has_warnings = False
+
+    # 1. Parse pyproject.toml
+    try:
+        with open(pyproject_path, "rb") as f:
+            pyproject_data = tomllib.load(f)
+        print("  [✓] pyproject.toml is valid TOML")
+    except Exception as e:
+        print(f"  [✗] Failed to parse pyproject.toml: {e}", file=sys.stderr)
+        if exit_on_fail:
+            sys.exit(1)
+        return False
+
+    # Check project name
+    proj_name = pyproject_data.get("project", {}).get("name", "")
+    if not proj_name:
+        print("  [✗] Project name not defined in pyproject.toml")
+        has_errors = True
+    else:
+        if not proj_name.startswith("mirrordash-"):
+            print(f"  [!] Warning: Project name '{proj_name}' does not start with 'mirrordash-' prefix.")
+            has_warnings = True
+        else:
+            print(f"  [✓] Project name '{proj_name}' is valid")
+
+    # Check requires-python
+    requires_python = pyproject_data.get("project", {}).get("requires-python", "")
+    if not requires_python:
+        print("  [!] Warning: 'requires-python' is not specified in pyproject.toml.")
+        has_warnings = True
+    else:
+        print(f"  [✓] requires-python is specified: '{requires_python}'")
+
+    # Check entry point
+    entry_points = pyproject_data.get("project", {}).get("entry-points", {}).get("mirrordash.modules", {})
+    if not entry_points:
+        print("  [✗] No entry point registered under [project.entry-points.\"mirrordash.modules\"]")
+        has_errors = True
+        package_python_name = None
+        class_name = None
+    else:
+        entry_name, entry_val = list(entry_points.items())[0]
+        print(f"  [✓] Found entry point: {entry_name} = {entry_val}")
+        if ":" not in entry_val:
+            print("  [✗] Entry point target must be in format 'package.module:Class'")
+            has_errors = True
+            package_python_name = None
+            class_name = None
+        else:
+            module_path, class_name = entry_val.split(":", 1)
+            package_python_name = module_path.split(".", 1)[0]
+
+    # 2. Check Package Directory
+    package_dir = None
+    if package_python_name:
+        package_dir = path / package_python_name
+        if not package_dir.exists() or not package_dir.is_dir():
+            print(f"  [✗] Package directory '{package_python_name}' not found under project root.")
+            has_errors = True
+            package_dir = None
+        else:
+            print(f"  [✓] Package directory '{package_python_name}' exists")
+
+    if package_dir:
+        # Check __init__.py
+        init_file = package_dir / "__init__.py"
+        if not init_file.exists():
+            print("  [✗] __init__.py not found in package directory.")
+            has_errors = True
+        else:
+            print("  [✓] __init__.py exists")
+
+        # Check plugin.py
+        plugin_file = package_dir / "plugin.py"
+        if not plugin_file.exists():
+            print("  [✗] plugin.py not found in package directory.")
+            has_errors = True
+            plugin_content = ""
+        else:
+            print("  [✓] plugin.py exists")
+            # Read and inspect plugin.py
+            with open(plugin_file, "r", encoding="utf-8") as f:
+                plugin_content = f.read()
+
+            if class_name and f"class {class_name}" not in plugin_content:
+                print(f"  [✗] Entrypoint class '{class_name}' is not defined in plugin.py.")
+                has_errors = True
+            elif class_name:
+                print(f"  [✓] Entrypoint class '{class_name}' exists in plugin.py")
+
+            # Check CancelledError
+            if "CancelledError" not in plugin_content:
+                print("  [✗] plugin.py does not appear to catch and re-raise asyncio.CancelledError.")
+                print("      Every MirrorDash module run_loop must handle CancelledError cleanly (Rule #5).")
+                has_errors = True
+            else:
+                print("  [✓] plugin.py references CancelledError (clean shutdown support)")
+
+        # Check config_schema.json or plugin.py config_schema attribute
+        schema_file = package_dir / "config_schema.json"
+        has_schema = False
+        schema_data = None
+        if schema_file.exists():
+            try:
+                with open(schema_file, "r", encoding="utf-8") as sf:
+                    schema_data = json.load(sf)
+                print("  [✓] config_schema.json exists and is valid JSON")
+                has_schema = True
+            except Exception as se:
+                print(f"  [✗] config_schema.json exists but is invalid JSON: {se}")
+                has_errors = True
+        else:
+            # Check plugin.py
+            if (package_dir / "plugin.py").exists() and f"config_schema" in plugin_content:
+                print("  [✓] Inline config_schema attribute detected in plugin.py")
+                has_schema = True
+            else:
+                print("  [!] Warning: No config_schema.json or inline config_schema attribute found.")
+                print("      The module will fallback to default position/interval settings.")
+                has_warnings = True
+
+        # Validate schema details if config_schema.json is present
+        if schema_data:
+            properties = schema_data.get("properties", {})
+            required_props = ["enabled", "position", "interval", "show_header"]
+            missing_props = [p for p in required_props if p not in properties]
+            if missing_props:
+                print(f"  [!] Warning: config_schema is missing standard properties: {missing_props}")
+                has_warnings = True
+            else:
+                print("  [✓] config_schema contains standard properties (enabled, position, interval, show_header)")
+
+            # Check positions enum
+            pos_prop = properties.get("position", {})
+            enum_vals = pos_prop.get("enum", [])
+            expected_positions = ["top_left", "top_center", "top_right", "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right"]
+            missing_positions = [pos for pos in expected_positions if pos not in enum_vals]
+            if missing_positions:
+                print(f"  [!] Warning: config_schema position enum only contains {len(enum_vals)} positions.")
+                print(f"      Missing: {missing_positions}")
+                has_warnings = True
+            else:
+                print("  [✓] config_schema position enum supports all 9 MirrorDash positions")
+
+        # Check templates/widget.html
+        templates_dir = package_dir / "templates"
+        if not templates_dir.exists() or not templates_dir.is_dir():
+            print("  [!] Warning: 'templates' directory not found.")
+            has_warnings = True
+        else:
+            html_files = list(templates_dir.glob("*.html"))
+            if not html_files:
+                print("  [✗] No HTML template files (*.html) found in templates directory.")
+                has_errors = True
+            else:
+                print(f"  [✓] Templates folder contains {len(html_files)} template(s): {[f.name for f in html_files]}")
+                # Check Ethereal design style in html files
+                for html_file in html_files:
+                    with open(html_file, "r", encoding="utf-8") as hf:
+                        h_content = hf.read()
+                    if "<style>" not in h_content:
+                        print(f"  [!] Warning: Template {html_file.name} does not contain a <style> block for module CSS isolation.")
+                        has_warnings = True
+                    if "show_header" not in h_content:
+                        print(f"  [!] Warning: Template {html_file.name} does not reference 'show_header' context variable.")
+                        has_warnings = True
+
+        # Check translations/en.json
+        translations_dir = package_dir / "translations"
+        if not translations_dir.exists() or not translations_dir.is_dir():
+            print("  [!] Warning: 'translations' directory not found.")
+            has_warnings = True
+        else:
+            en_json = translations_dir / "en.json"
+            if not en_json.exists():
+                print("  [✗] English fallback translation file (translations/en.json) not found.")
+                has_errors = True
+            else:
+                try:
+                    with open(en_json, "r", encoding="utf-8") as tf:
+                        json.load(tf)
+                    print("  [✓] Fallback translation file translations/en.json is valid JSON")
+                except Exception as te:
+                    print(f"  [✗] translations/en.json is invalid JSON: {te}")
+                    has_errors = True
+
+    # 3. Check README.md and screenshot.png
+    readme_file = path / "README.md"
+    if not readme_file.exists():
+        print("  [✗] README.md not found in module directory.")
+        has_errors = True
+    else:
+        print("  [✓] README.md exists")
+        with open(readme_file, "r", encoding="utf-8") as rf:
+            readme_content = rf.read()
+        if "screenshot.png" not in readme_content:
+            print("  [!] Warning: README.md does not reference 'screenshot.png'.")
+            has_warnings = True
+        else:
+            print("  [✓] README.md references screenshot.png")
+
+    screenshot_file = path / "screenshot.png"
+    if not screenshot_file.exists():
+        print("  [!] Warning: screenshot.png not found in module directory.")
+        print("      Every MirrorDash module should have a screenshot.png preview at its root for the module store.")
+        has_warnings = True
+    else:
+        print("  [✓] screenshot.png exists")
+
+    # Conclusion
+    print("\nValidation Complete:")
+    if has_errors:
+        print("  STATUS: FAIL (Fix errors before distributing / enabling)")
+        if exit_on_fail:
+            sys.exit(1)
+        return False
+    elif has_warnings:
+        print("  STATUS: PASS WITH WARNINGS (Ready, but clean up warnings for best practice)")
+    else:
+        print("  STATUS: PASS (100% MirrorDash Compliant)")
+    return True

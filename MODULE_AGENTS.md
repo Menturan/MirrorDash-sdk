@@ -6,20 +6,29 @@ This file provides AI coding agents with instructions for creating, modifying, a
 
 ## 1. Developer Environment & Scaffolding
 
-### Always Use the CLI Scaffolder
-Never build module packages manually from scratch. Always scaffold a new module using the `mirrordash-cli` utility from the project root:
+### Setting Up the Environment
+Always initialize the Python virtual environment and core packages using the CLI `dev-setup` command:
+```bash
+mirrordash-cli dev-setup
+```
 
+### Always Use the CLI Scaffolder
+Never build module packages manually from scratch. Always scaffold a new module using the `create-module` command:
 ```bash
 mirrordash-cli create-module mirrordash-<name> --description "<description>"
 ```
-
 This ensures a fully compatible Hatchling project layout with the correct entry point registrations in `pyproject.toml`.
 
-### Editable Installation
-To register the module's entry point with the running backend during development, install it in editable mode inside the project's virtual environment:
-
+### Editable Installation & Registration
+To validate and register the module's entry point with the local configuration and run environment during development, use the `register` command:
 ```bash
-uv pip install -e ./modules/mirrordash-<name>
+mirrordash-cli register ./mirrordash-<name>
+```
+
+### Starting the Server
+Start the local server using the CLI `start` command to run the core MirrorDash application:
+```bash
+mirrordash-cli start
 ```
 
 ---

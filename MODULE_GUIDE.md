@@ -67,36 +67,41 @@ Follow these steps to set up your local development environment:
 
 ## 1. Quick Start
 
-The fastest way to create a new module is the CLI scaffolder. 
+The fastest way to set up your workspace and create a new module is using the CLI.
 
-### Running without cloning (via `uvx` / `uv tool run`)
-If you use `uv`, you don't even need to download the SDK repository manually. You can run the scaffolder directly from PyPI:
+### 1. Set Up Environment
+Initialize your local virtual environment and install MirrorDash core:
 ```bash
-uvx mirrordash-cli create-module mirrordash-my-widget --description "My custom widget"
+uvx mirrordash-cli dev-setup
 ```
-Or run it directly from the Git repository:
+
+### 2. Scaffold a Module
+Bootstrap your custom module template directory:
 ```bash
+# Run directly from PyPI
+uvx mirrordash-cli create-module mirrordash-my-widget --description "My custom widget"
+
+# Or run directly from Git
 uvx --from git+https://github.com/menturan/mirrordash-sdk.git mirrordash-cli create-module mirrordash-my-widget --description "My custom widget"
 ```
 
-### Running with local installation
-If you have installed the SDK package (e.g. in editable mode from source), you can run it directly:
-```bash
-mirrordash-cli create-module mirrordash-my-widget --description "My custom widget"
-```
-
-This generates a fully working module skeleton under `modules/mirrordash-my-widget/` with:
+This generates a fully working module skeleton under `mirrordash-my-widget/` (or `modules/mirrordash-my-widget/` if you are in the core project workspace) featuring:
 - A pre-configured `pyproject.toml` (Hatchling build backend, `jinja2` dependency, correct wheel packaging)
 - A `config_schema.json` with standard `enabled`, `position`, and `interval` fields
 - A `plugin.py` with an async `run_loop` and a Jinja2 template already wired up
 - A `templates/widget.html` starter template
 
-Then, validate, install, and enable the module in your local MirrorDash configuration automatically using the CLI:
-
+### 3. Register and Install
+Validate the module structure, install it in editable mode inside your virtual environment, and register its default configuration settings in `config.json` automatically:
 ```bash
 uvx mirrordash-cli register ./mirrordash-my-widget
 ```
-*(Alternatively, you can manually install in editable mode with `uv pip install -e ./mirrordash-my-widget` and configure the module key in `~/.mirrordash/data/config.json` manually).*
+
+### 4. Start Server
+Start the local MirrorDash developer server to preview your widget in real time:
+```bash
+uvx mirrordash-cli start
+```
 
 ---
 
@@ -505,31 +510,40 @@ The MirrorDash kiosk display uses **Cog (WPE WebKit)** as its renderer, rather t
 ### For local use (no build needed)
 Install directly from source — editable for development, or as a one-shot install:
 ```bash
-uv pip install -e ./modules/mirrordash-my-widget   # editable (recommended during dev)
-uv pip install ./modules/mirrordash-my-widget       # one-shot copy install
+uvx mirrordash-cli register ./mirrordash-my-widget
 ```
 
 ### For distribution via Git
+Anyone can install your module directly from a Git URL:
 ```bash
-# Anyone can install directly from a Git URL:
 uv pip install git+https://github.com/username/mirrordash-my-widget.git
 ```
 
 ### For PyPI
 
-1. Create an API Token on [pypi.org](https://pypi.org).
-2. Configure credentials in `~/.pypirc`:
-   ```ini
-   [pypi]
-     username = __token__
-     password = pypi-YOUR_API_TOKEN
-   ```
-3. Build and publish:
+You can easily build and publish your module to PyPI using the CLI.
+
+#### A. Automated CI/CD (GitHub Actions) - Recommended
+Generate a GitHub Actions workflow that automatically runs tests and publishes tags to PyPI (using secure OIDC Trusted Publishing):
+```bash
+uvx mirrordash-cli setup-github ./mirrordash-my-widget
+```
+This generates `.github/workflows/publish.yml` in your repository. Follow the prompts to push the code and publish by creating git tags (e.g., `v0.1.0`).
+
+#### B. Manual Build & Publish
+Alternatively, you can build and publish manually:
+
+1. **Build the package**:
    ```bash
-   cd modules/mirrordash-my-widget
-   uv build        # Creates dist/*.whl and dist/*.tar.gz
-   uv publish      # Uploads to PyPI (or use: uvx twine upload dist/*)
+   uvx mirrordash-cli build ./mirrordash-my-widget
    ```
+   This generates `.whl` and `.tar.gz` distribution packages inside `dist/`.
+
+2. **Publish the package**:
+   ```bash
+   uvx mirrordash-cli publish ./mirrordash-my-widget
+   ```
+   This will run validation checks, verify the build, and prompt you to upload it to PyPI.
 
 > [!NOTE]
 > **Non-Python files (templates, schemas, images) are bundled automatically** when using Hatchling with the `packages` key in `pyproject.toml`. The `mirrordash-cli` scaffolder sets this up for you, so no extra configuration is needed.
