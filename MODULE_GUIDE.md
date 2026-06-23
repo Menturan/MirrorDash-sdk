@@ -493,6 +493,15 @@ The system uses **Lucide Icons** as its standard, vector-based line-art iconogra
 - **Use Flexible Sizing**: Build layout containers using flexbox or CSS Grid with flexible sizing (`flex: 1`, `min-width: 0`, `max-content`).
 - **Handle Overflow Gracefully**: Apply truncation utilities (`text-overflow: ellipsis`, `overflow: hidden`, `white-space: nowrap`) to text fields to gracefully handle long localized text.
 
+### Shadow DOM Encapsulation & Style Scoping
+
+Every MirrorDash module is rendered inside its own **Shadow DOM** boundary on the kiosk mirror UI. This guarantees layout robustness but has specific implications for styling and scripting:
+
+* **Automatic Isolation**: Any classes, IDs, or element styles defined inside your template's `<style>` block (e.g. `.container`, `p`, `.title`) are scoped strictly to your module and will not leak out to affect other widgets or the core page structure.
+* **Global CSS Variables**: System design tokens and CSS variables (e.g. `var(--mirror-primary)`, `--color-primary-white`, etc.) cross the shadow boundary and are fully accessible inside your module's styles. Always utilize these properties.
+* **No Cascading Global Styles**: Outside of custom properties, styles from global stylesheets do not cascade into your module. All module-specific styling must reside inside the module template's `<style>` block.
+* **Scripting Isolation**: Global DOM query functions like `document.querySelector()` or `document.getElementById()` cannot select elements residing inside a module's Shadow DOM. If client-side JavaScript is required, selectors must run relative to the module's shadow root (e.g., `element.shadowRoot.querySelector(...)`).
+
 ### Browser Target & Engine Compatibility
 
 The MirrorDash kiosk display uses **Cog (WPE WebKit)** as its renderer, rather than Chromium/Blink.

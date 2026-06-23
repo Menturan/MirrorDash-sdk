@@ -93,6 +93,7 @@ All module designs must adhere to the MirrorDash **Ethereal Design System** to p
   - **No fixed widths**: Do not use hardcoded pixel widths (`width: 150px`) for lists, columns, or layout elements. Swedish, German, or French text strings can be twice as long as English.
   - Use Flexbox or CSS Grid with flexible sizing (`flex: 1`, `min-width: 0`, `max-content`).
   - Use text-overflow ellipsis utilities to handle long strings gracefully.
+- **Shadow DOM Encapsulation**: Remember that modules render inside Shadow DOM. All widget-specific CSS must reside inside a template `<style>` block. Global styles do not cascade in, and global scripts (`document.querySelector`) cannot select your module's elements. Query relative to the shadow root if client-side JS is needed.
 
 ---
 
