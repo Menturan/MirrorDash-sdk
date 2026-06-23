@@ -91,11 +91,12 @@ This generates a fully working module skeleton under `modules/mirrordash-my-widg
 - A `plugin.py` with an async `run_loop` and a Jinja2 template already wired up
 - A `templates/widget.html` starter template
 
-Then install it into the mirror's virtual environment in **editable mode** so your edits take effect on the next restart without reinstalling:
+Then, validate, install, and enable the module in your local MirrorDash configuration automatically using the CLI:
 
 ```bash
-uv pip install -e ./modules/mirrordash-my-widget
+uvx mirrordash-cli register ./mirrordash-my-widget
 ```
+*(Alternatively, you can manually install in editable mode with `uv pip install -e ./mirrordash-my-widget` and configure the module key in `~/.mirrordash/data/config.json` manually).*
 
 ---
 

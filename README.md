@@ -60,29 +60,15 @@ Use the SDK command-line tool to bootstrap a new custom module directory:
 uvx mirrordash-cli create-module mirrordash-my-widget --description "A custom widget"
 ```
 
-### Step 4: Install Your Module in Editable Mode
-Install your custom module into the active virtual environment in **editable mode** (`-e`). This tells Python to link directly to your source files, so any modifications to your templates or scripts take effect immediately:
+### Step 4: Register and Enable Your Module
+Use the SDK CLI tool to validate your module, install it in editable mode inside your active virtual environment, and register its default configuration settings in your local `config.json` automatically:
 ```bash
-# Install in editable mode
-uv pip install -e ./mirrordash-my-widget
+# Validate, install in editable mode, and enable in config.json
+uvx mirrordash-cli register ./mirrordash-my-widget
 ```
+*(Alternatively, you can manually install in editable mode with `uv pip install -e ./mirrordash-my-widget` and configure the module key visually via the Admin Dashboard at `http://localhost:8000/admin`).*
 
-### Step 5: Enable Your Module in local Configuration
-Your local MirrorDash settings are stored automatically at `~/.mirrordash/data/config.json`. Enable your widget and assign its screen position in the configuration:
-```json
-{
-  "modules": {
-    "mirrordash-my-widget": {
-      "enabled": true,
-      "position": "top_left",
-      "interval": 60
-    }
-  }
-}
-```
-*(Alternatively, configure it visually by opening the Admin Dashboard at `http://localhost:8000/admin` once the server starts).*
-
-### Step 6: Start the MirrorDash Server
+### Step 5: Start the MirrorDash Server
 Run the core MirrorDash server from your active virtual environment:
 ```bash
 python -m mirrordash_core.main
@@ -123,7 +109,10 @@ Once installed, use the CLI directly:
 mirrordash-cli create-module mirrordash-my-widget
 
 # Validate an existing widget directory structure
-mirrordash-cli validate ./modules/mirrordash-my-widget
+mirrordash-cli validate ./mirrordash-my-widget
+
+# Register (validate, install in editable mode, and enable in config.json)
+mirrordash-cli register ./mirrordash-my-widget
 ```
 
 > [!IMPORTANT]

@@ -23,12 +23,18 @@ def main():
     validate_parser = subparsers.add_parser("validate", help="Validate a module's structure and conformity")
     validate_parser.add_argument("path", nargs="?", default=".", help="Path to the module directory (default: current directory)")
     
+    # register sub-command
+    register_parser = subparsers.add_parser("register", help="Install module in editable mode and register in config.json")
+    register_parser.add_argument("path", nargs="?", default=".", help="Path to the module directory (default: current directory)")
+    
     args = parser.parse_args()
     
     if args.command == "create-module":
         create_module(args.name, args.description, args.author, args.dry_run)
     elif args.command == "validate":
         validate_module(args.path)
+    elif args.command == "register":
+        register_module(args.path)
     else:
         parser.print_help()
 
@@ -397,12 +403,14 @@ Place a preview screenshot of your widget named `screenshot.png` in the root of 
     else:
         print("\nDry run completed. No files were written.")
 
-def validate_module(path_str: str):
+def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
     try:
         import tomllib
     except ImportError:
         print("Error: tomllib is required (Python 3.11+). Please run with Python 3.11 or newer.", file=sys.stderr)
-        sys.exit(1)
+        if exit_on_fail:
+            sys.exit(1)
+        return False
 
     path = Path(path_str).resolve()
     print(f"Validating module at: {path}\n")
@@ -410,7 +418,9 @@ def validate_module(path_str: str):
     pyproject_path = path / "pyproject.toml"
     if not pyproject_path.exists():
         print(f"  [✗] pyproject.toml not found. Is this a Python project directory?", file=sys.stderr)
-        sys.exit(1)
+        if exit_on_fail:
+            sys.exit(1)
+        return False
 
     has_errors = False
     has_warnings = False
@@ -422,7 +432,9 @@ def validate_module(path_str: str):
         print("  [✓] pyproject.toml is valid TOML")
     except Exception as e:
         print(f"  [✗] Failed to parse pyproject.toml: {e}", file=sys.stderr)
-        sys.exit(1)
+        if exit_on_fail:
+            sys.exit(1)
+        return False
 
     # Check project name
     proj_name = pyproject_data.get("project", {}).get("name", "")
@@ -623,11 +635,131 @@ def validate_module(path_str: str):
     print("\nValidation Complete:")
     if has_errors:
         print("  STATUS: FAIL (Fix errors before distributing / enabling)")
-        sys.exit(1)
+        if exit_on_fail:
+            sys.exit(1)
+        return False
     elif has_warnings:
         print("  STATUS: PASS WITH WARNINGS (Ready, but clean up warnings for best practice)")
     else:
         print("  STATUS: PASS (100% MirrorDash Compliant)")
+    return True
+
+def register_module(path_str: str):
+    try:
+        import tomllib
+    except ImportError:
+        print("Error: tomllib is required (Python 3.11+). Please run with Python 3.11 or newer.", file=sys.stderr)
+        sys.exit(1)
+        
+    import subprocess
+    
+    path = Path(path_str).resolve()
+    pyproject_path = path / "pyproject.toml"
+    
+    # 1. Validate module first (without exiting immediately inside validation)
+    print(f"Validating module at '{path}' before registering...")
+    if not validate_module(path_str, exit_on_fail=False):
+        print("\nError: Module validation failed. Registration aborted.", file=sys.stderr)
+        sys.exit(1)
+        
+    # 2. Parse pyproject.toml to find module entry name and class name
+    try:
+        with open(pyproject_path, "rb") as f:
+            pyproject_data = tomllib.load(f)
+    except Exception as e:
+        print(f"Error: Failed to parse pyproject.toml: {e}", file=sys.stderr)
+        sys.exit(1)
+        
+    entry_points = pyproject_data.get("project", {}).get("entry-points", {}).get("mirrordash.modules", {})
+    if not entry_points:
+        print("Error: No entry point registered under [project.entry-points.\"mirrordash.modules\"]", file=sys.stderr)
+        sys.exit(1)
+        
+    entry_name = list(entry_points.keys())[0]
+    
+    # 3. Read config_schema.json to extract default properties
+    schema_path = path / entry_name / "config_schema.json"
+    default_config = {
+        "enabled": True,
+        "position": "top_left",
+        "interval": 30
+    }
+    if schema_path.exists():
+        try:
+            with open(schema_path, "r", encoding="utf-8") as f:
+                schema_data = json.load(f)
+            properties = schema_data.get("properties", {})
+            for key, val in properties.items():
+                if isinstance(val, dict) and "default" in val:
+                    default_config[key] = val["default"]
+        except Exception as e:
+            print(f"Warning: Failed to extract schema defaults: {e}. Using fallback defaults.")
+
+    # 4. Install the module in editable mode
+    print(f"\nInstalling module '{entry_name}' in editable mode...")
+    
+    # Attempt uv first, fall back to robust python pip execution
+    try:
+        subprocess.run(["uv", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+        install_cmd = ["uv", "pip", "install", "-e", str(path)]
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        install_cmd = [sys.executable, "-m", "pip", "install", "-e", str(path)]
+        
+    print(f"Running: {' '.join(install_cmd)}")
+    res = subprocess.run(install_cmd)
+    if res.returncode != 0:
+        print(f"\nError: Installation failed with exit code {res.returncode}.", file=sys.stderr)
+        sys.exit(1)
+        
+    # 5. Resolve config.json path
+    env_path = os.environ.get("MIRRORDASH_CONFIG_PATH") or os.environ.get("MYMM_CONFIG_PATH")
+    if env_path:
+        config_path = Path(env_path).resolve()
+    else:
+        config_path = Path(os.path.expanduser("~")) / ".mirrordash" / "data" / "config.json"
+        if not config_path.exists():
+            alt_paths = [
+                Path(os.path.expanduser("~")) / ".mirrordash" / "config.json",
+                Path(os.path.expanduser("~")) / ".mymagicmirror" / "config.json"
+            ]
+            for p in alt_paths:
+                if p.exists():
+                    config_path = p
+                    break
+                    
+    # 6. Load and update config.json
+    config = {}
+    if config_path.exists():
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+        except Exception as e:
+            print(f"Warning: Failed to load existing config.json: {e}")
+            
+    if not isinstance(config, dict):
+        config = {}
+        
+    if "modules" not in config:
+        config["modules"] = {}
+        
+    # Insert or update entry
+    config["modules"][entry_name] = default_config
+    
+    # Save back to config.json
+    try:
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2)
+        print(f"\n[✓] Registered module in config: {config_path}")
+        print(f"    Key: '{entry_name}'")
+        print(f"    Value: {json.dumps(default_config)}")
+    except Exception as e:
+        print(f"Error: Failed to save updated config.json: {e}", file=sys.stderr)
+        sys.exit(1)
+        
+    print("\nSuccess! Module registered and ready for development.")
+    print("Run your MirrorDash server locally:")
+    print("  python -m mirrordash_core.main")
 
 if __name__ == "__main__":
     main()
