@@ -356,7 +356,57 @@ Place a preview screenshot of your widget named `screenshot.png` in the root of 
         with open(target_dir / "README.md", "w", encoding="utf-8") as f:
             f.write(readme_content)
 
+    # 7. Write .gitignore
+    gitignore_content = """# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+
+# IDE / Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# System / OS
+.DS_Store
+Thumbs.db
+
+# App local logs or cli tools cache
+.antigravitycli/
+.kilo/
+"""
+    if dry_run:
+        print(f"\n[DRY RUN] Would write file: {target_dir / '.gitignore'} with content:\n{gitignore_content.strip()}")
+        print("[DRY RUN] Would run: git init")
+        print("[DRY RUN] Would run: git add .")
+        print("[DRY RUN] Would run: git commit --no-gpg-sign -m \"feat: initial commit\"")
+    else:
+        with open(target_dir / ".gitignore", "w", encoding="utf-8") as f:
+            f.write(gitignore_content)
+
     if not dry_run:
+        # Initialize Git repository
+        try:
+            import subprocess
+            import shutil
+            if shutil.which("git"):
+                print("Initializing Git repository...")
+                subprocess.run(["git", "init"], cwd=target_dir, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                subprocess.run(["git", "add", "."], cwd=target_dir, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                subprocess.run(["git", "commit", "--no-gpg-sign", "-m", "feat: initial commit"], cwd=target_dir, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                print("Git repository initialized with initial commit.")
+            else:
+                print("Warning: 'git' command not found. Skipping Git repository initialization.")
+        except Exception as e:
+            print(f"Warning: Failed to initialize Git repository: {e}")
+
         print("\nSuccess! Module bootstrapped successfully.")
         print("Next steps:")
         try:
