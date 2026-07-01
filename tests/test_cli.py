@@ -152,26 +152,6 @@ def test_start_server_interrupt(mock_run):
         assert result.exit_code == 0
         assert "MirrorDash server stopped." in result.output
 
-def test_setup_github_workflow():
-    runner = CliRunner()
-    with runner.isolated_filesystem() as temp_dir:
-        result = runner.invoke(main, ["setup-github"])
-        assert result.exit_code != 0
-        assert "Error: No pyproject.toml found" in result.output
-        
-        runner.invoke(main, ["create-module", "mirrordash-test"])
-        
-        result = runner.invoke(main, ["setup-github", "--path", "mirrordash-test"])
-        assert result.exit_code == 0
-        assert "Created GitHub workflow at" in result.output
-        
-        workflow_file = Path("mirrordash-test") / ".github" / "workflows" / "publish.yml"
-        assert workflow_file.exists()
-        with open(workflow_file, "r") as f:
-            workflow_content = f.read()
-        assert "CI & Publish to PyPI" in workflow_content
-        assert "mirrordash-test" in workflow_content
-
 @patch("subprocess.run")
 def test_build_command(mock_run):
     res = MagicMock()

@@ -104,10 +104,9 @@ mirrordash-cli create-module <name>  # Scaffold a new widget directory structure
 mirrordash-cli validate <path>       # Validate an existing widget structure and conformity
 mirrordash-cli register <path>       # Validate, install in editable mode, and enable in config.json
 
-# 3. Build & CI/CD Deployment
-mirrordash-cli setup-github <path>   # Generate a GitHub Actions CI/CD workflow (publish.yml)
+# 3. Build & Deployment
 mirrordash-cli build <path>          # Build module wheels and source distribution package
-mirrordash-cli publish <path>        # Run validation and upload package to PyPI
+mirrordash-cli publish <path>        # Run validation and upload package to PyPI (optional)
 ```
 
 > [!IMPORTANT]

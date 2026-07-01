@@ -7,7 +7,6 @@ from .manager import (
     register_module,
     dev_setup_logic,
     start_server_logic,
-    setup_github_logic,
     build_module_logic,
     publish_module_logic,
 )
@@ -51,12 +50,6 @@ def dev_setup_cmd(path: Path, core_git: str, editable: bool):
 def start_cmd(path: Path):
     """Start the MirrorDash application."""
     start_server_logic(str(path))
-
-@main.command("setup-github")
-@click.option("--path", "-p", default=".", type=click.Path(file_okay=False, path_type=Path), help="Path to module directory (default: .)")
-def setup_github_cmd(path: Path):
-    """Setup a GitHub Actions CI/CD workflow for the module."""
-    setup_github_logic(str(path))
 
 @main.command("build")
 @click.option("--path", "-p", default=".", type=click.Path(exists=True, file_okay=False, path_type=Path), help="Path to module directory (default: .)")
