@@ -404,18 +404,20 @@ class MyWidgetModule:
     }
 ```
 
-### Supported property types
 
-| `type` | Renders as |
-|--------|-----------|
-| `"boolean"` | Toggle switch |
-| `"string"` | Text input (or dropdown if `enum` is set) |
-| `"integer"` / `"number"` | Number input |
+### Supported field types
+
+The form generator supports **11 input controls**, each triggered automatically by a specific JSON Schema definition. Rather than documenting them here, see the live reference:
+
+> **[Configuration Form Controls — Design System Explorer](http://localhost:8000/design#forms)**
+>
+> Every supported field type is shown side-by-side: the rendered input on the left, the exact `config_schema.json` snippet to copy on the right.
 
 > [!NOTE]
 > Alternatively, place the schema in a `config_schema.json` file next to `plugin.py`. If no schema is defined at all, the platform falls back to a minimal `enabled` + `position` schema.
 
 ---
+
 
 ## 7. Styling Guidelines
 
@@ -512,35 +514,30 @@ The MirrorDash kiosk display uses **Cog (WPE WebKit)** as its renderer, rather t
   - Test custom stylesheets and script features against WebKit behaviors.
   - Avoid heavy JavaScript frameworks; utilize vanilla JS to maintain WPE WebKit's high-performance rendering.
 
----
-
 ## 8. Building & Publishing
 
-### For local use (no build needed)
-Install directly from source — editable for development, or as a one-shot install:
-```bash
-uvx mirrordash-cli register ./mirrordash-my-widget
-```
+### Installing Directly from Git (Recommended)
 
-### For distribution via Git
-Anyone can install your module directly from a Git URL:
+By default, MirrorDash modules are designed to be installed directly from a Git repository (like GitHub). This makes deployment extremely simple and avoids the need for external package indexes.
+
+Anyone can install your module directly using its Git URL:
 ```bash
+# Install the latest version from main branch
 uv pip install git+https://github.com/username/mirrordash-my-widget.git
+
+# Install a specific tag or version (recommended for stability)
+uv pip install git+https://github.com/username/mirrordash-my-widget.git@v0.1.0
 ```
 
-### For PyPI
+To support versioned releases, developers are encouraged to push Git tags (e.g., `v0.1.0`) to their repository.
 
-You can easily build and publish your module to PyPI using the CLI.
+---
 
-#### A. Automated CI/CD (GitHub Actions) - Recommended
-Generate a GitHub Actions workflow that automatically runs tests and publishes tags to PyPI (using secure OIDC Trusted Publishing):
-```bash
-uvx mirrordash-cli setup-github ./mirrordash-my-widget
-```
-This generates `.github/workflows/publish.yml` in your repository. Follow the prompts to push the code and publish by creating git tags (e.g., `v0.1.0`).
+### Publishing to PyPI (Optional)
 
-#### B. Manual Build & Publish
-Alternatively, you can build and publish manually:
+Publishing your module to PyPI is optional. You should only publish to PyPI if you want to make your module easily discoverable on [pypi.org](https://pypi.org) and allow users to install it via a standard package name (e.g., `uv pip install mirrordash-my-widget`).
+
+To build and publish manually:
 
 1. **Build the package**:
    ```bash
