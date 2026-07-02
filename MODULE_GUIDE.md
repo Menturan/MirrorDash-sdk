@@ -531,6 +531,14 @@ uv pip install git+https://github.com/username/mirrordash-my-widget.git@v0.1.0
 
 To support versioned releases, developers are encouraged to push Git tags (e.g., `v0.1.0`) to their repository.
 
+> [!IMPORTANT]
+> **GitHub Releases Required**: MirrorDash requires all GitHub-hosted modules to have at least one official **GitHub Release**. If a repository has no releases:
+> * It will be ignored by the Admin Dashboard's community module scanner/store.
+> * Manual installation via its Git URL will be blocked with a `400 Bad Request` error.
+> * Automatic version update checking will be bypassed.
+> 
+> Always draft a release on GitHub for your tags to ensure compatibility.
+
 ---
 
 ### Publishing to PyPI (Optional)
