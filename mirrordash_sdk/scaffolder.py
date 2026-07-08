@@ -6,7 +6,7 @@ from pathlib import Path
 # Get project root (parent directory of mirrordash_core)
 ROOT_DIR = Path(__file__).parent.parent.resolve()
 
-def create_module(name: str, description: str, author: str, dry_run: bool = False):
+def create_module(name: str, description: str, author: str, icon: str = None, dry_run: bool = False):
     # Normalize name:
     # Folder name: hyphens preferred for packaging, e.g., mirrordash-my-widget
     # Python package name: must use underscores, e.g., mirrordash_my_widget
@@ -84,20 +84,50 @@ packages = ["{package_name}"]
         with open(package_dir / "__init__.py", "w", encoding="utf-8") as f:
             f.write(init_content)
         
+    # Resolve icon:
+    icon_svg_content = None
+    icon_fa_class = None
+
+    if icon:
+        if icon.lower().endswith(".svg"):
+            icon_path = Path(icon)
+            if icon_path.exists() and icon_path.is_file():
+                try:
+                    icon_svg_content = icon_path.read_text(encoding="utf-8").strip()
+                except Exception as e:
+                    print(f"Error reading custom SVG icon file '{icon}': {e}", file=sys.stderr)
+                    sys.exit(1)
+            else:
+                print(f"Error: Custom SVG icon file '{icon}' not found.", file=sys.stderr)
+                sys.exit(1)
+        else:
+            icon_fa_class = icon
+    else:
+        # Default SVG icon (3D Cube)
+        icon_svg_content = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+  <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+  <line x1="12" y1="22.08" x2="12" y2="12"/>
+</svg>"""
+
     # 3. Write config_schema.json
     title_val = folder_name.replace('mirrordash-', '').replace('mymm-', '').replace('_', ' ').replace('-', ' ').title()
-    schema_content = f"""{{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "{title_val}",
-  "type": "object",
-  "properties": {{
-    "enabled": {{
+    
+    schema_root_fields = []
+    schema_root_fields.append(f'"$schema": "http://json-schema.org/draft-07/schema#"')
+    schema_root_fields.append(f'"title": "{title_val}"')
+    if icon_fa_class:
+        schema_root_fields.append(f'"icon": "{icon_fa_class}"')
+    schema_root_fields.append('"type": "object"')
+
+    properties_block = """  "properties": {
+    "enabled": {
       "type": "boolean",
       "default": true,
       "title": "Enabled",
       "description": "Enable or disable this module."
-    }},
-    "position": {{
+    },
+    "position": {
       "type": "string",
       "default": "middle_center",
       "enum": [
@@ -113,28 +143,37 @@ packages = ["{package_name}"]
       ],
       "title": "Screen Position",
       "description": "Where to display this module on the mirror screen."
-    }},
-    "interval": {{
+    },
+    "interval": {
       "type": "integer",
       "default": 30,
       "title": "Update Interval (Seconds)",
       "description": "Time to wait between data refreshes."
-    }},
-    "show_header": {{
+    },
+    "show_header": {
       "type": "boolean",
       "default": true,
       "title": "Show Header",
       "description": "Show or hide the module's header/title."
-    }}
-  }},
-  "required": ["enabled", "position", "interval", "show_header"]
-}}
-"""
+    }
+  },
+  "required": ["enabled", "position", "interval", "show_header"]"""
+
+    schema_content = "{\n  " + ",\n  ".join(schema_root_fields) + ",\n" + properties_block + "\n}\n"
+
     if dry_run:
         print(f"\n[DRY RUN] Would write file: {package_dir / 'config_schema.json'} with content:\n{schema_content.strip()}")
     else:
         with open(package_dir / "config_schema.json", "w", encoding="utf-8") as f:
             f.write(schema_content)
+
+    # 3.b Write icon.svg if resolved
+    if icon_svg_content:
+        if dry_run:
+            print(f"\n[DRY RUN] Would write file: {package_dir / 'icon.svg'} with content:\n{icon_svg_content.strip()}")
+        else:
+            with open(package_dir / "icon.svg", "w", encoding="utf-8") as f:
+                f.write(icon_svg_content)
 
     # 4. Write plugin.py
     plugin_content = f"""import asyncio

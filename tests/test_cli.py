@@ -27,10 +27,36 @@ def test_create_module_execution():
         assert (module_path / "pyproject.toml").exists()
         assert (module_path / "mirrordash_test" / "plugin.py").exists()
         assert (module_path / "mirrordash_test" / "config_schema.json").exists()
+        assert (module_path / "mirrordash_test" / "icon.svg").exists()
         assert (module_path / "mirrordash_test" / "translations" / "en.json").exists()
         assert (module_path / "mirrordash_test" / "templates" / "widget.html").exists()
         assert (module_path / "tests" / "test_plugin.py").exists()
         assert (module_path / "README.md").exists()
+
+        # Check default icon.svg
+        icon_text = (module_path / "mirrordash_test" / "icon.svg").read_text()
+        assert "<svg" in icon_text
+
+        # Check config_schema has no custom icon field by default
+        with open(module_path / "mirrordash_test" / "config_schema.json") as f:
+            schema_data = json.load(f)
+            assert "icon" not in schema_data
+
+
+def test_create_module_custom_fa_icon():
+    runner = CliRunner()
+    with runner.isolated_filesystem() as temp_dir:
+        result = runner.invoke(main, ["create-module", "mirrordash-test", "--icon", "fa-bolt"])
+        assert result.exit_code == 0
+        
+        module_path = Path("mirrordash-test")
+        assert (module_path / "mirrordash_test" / "config_schema.json").exists()
+        assert not (module_path / "mirrordash_test" / "icon.svg").exists()
+
+        # Check config_schema has custom icon field
+        with open(module_path / "mirrordash_test" / "config_schema.json") as f:
+            schema_data = json.load(f)
+            assert schema_data.get("icon") == "fa-bolt"
 
 def test_validate_invalid_path():
     runner = CliRunner()

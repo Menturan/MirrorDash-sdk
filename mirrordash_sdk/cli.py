@@ -20,10 +20,11 @@ def main():
 @click.argument("name")
 @click.option("--description", "-d", default="A custom module for MirrorDash", help="Module description")
 @click.option("--author", "-a", default="MirrorDash Developer", help="Module author name")
+@click.option("--icon", "-i", default=None, help="FontAwesome class OR path to a custom SVG file")
 @click.option("--dry-run", is_flag=True, help="Preview generated files without creating them")
-def create_module_cmd(name, description, author, dry_run):
+def create_module_cmd(name, description, author, icon, dry_run):
     """Bootstrap a new custom module."""
-    create_module(name, description, author, dry_run)
+    create_module(name, description, author, icon, dry_run)
 
 @main.command("validate")
 @click.argument("path", default=".", type=click.Path(exists=True, file_okay=False, path_type=Path))
