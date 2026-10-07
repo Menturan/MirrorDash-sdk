@@ -87,7 +87,7 @@ uvx --from git+https://github.com/menturan/mirrordash-sdk.git mirrordash-cli cre
 
 This generates a fully working module skeleton under `mirrordash-my-widget/` (or `modules/mirrordash-my-widget/` if you are in the core project workspace) featuring:
 - A pre-configured `pyproject.toml` (Hatchling build backend, `jinja2` dependency, correct wheel packaging)
-- A `config_schema.json` with standard `enabled`, `position`, and `interval` fields
+- A `config_schema.json` with the module's own settings (`interval`, `show_header`); the core adds `enabled`, `position` and the other standard settings itself
 - A `plugin.py` with an async `run_loop` and a Jinja2 template already wired up
 - A `templates/widget.html` starter template
 
@@ -120,15 +120,6 @@ class MyWidgetModule:
         "title": "My Widget",
         "description": "Displays something cool on the mirror.",
         "properties": {
-            "enabled": {
-                "type": "boolean", "default": True,
-                "title": "Enabled", "description": "Enable or disable this widget."
-            },
-            "position": {
-                "type": "string", "default": "top_left",
-                "enum": ["top_left", "top_center", "top_right", "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right"],
-                "title": "Screen Position", "description": "Where to display this widget."
-            },
             "interval": {
                 "type": "integer", "default": 60,
                 "title": "Refresh Interval", "description": "Seconds between updates."
@@ -158,8 +149,10 @@ class MyWidgetModule:
 
 | Method | Purpose |
 |--------|---------|
-| `__init__(self, config)` | Receives the module's config dict from `config.json`. Store any settings you need. |
-| `run_loop(self, broadcast_func)` | Called once at startup. Loop forever, broadcast HTML updates. |
+| `__init__(self, config)` | Receives the module's config dict from `config.json`. Store any settings you need. `self.render_template` and `self.translate` are added after `__init__` returns, so don't call them here. |
+| `run_loop(self, broadcast_func)` | Loop forever and broadcast HTML updates. Started when the mirror starts, again after a crash or if it returns, and on a fresh instance every time the settings are saved (each save stops and recreates all modules). |
+
+`broadcast_func(name, html)` puts `html` in the module's place on the screen. The first argument is kept for compatibility and ignored; the core uses the instance id.
 
 If you define a **synchronous** `run_loop` (no `async`), the core loader will automatically run it in a background thread so it won't block the event loop. Sync mode is fine for simple modules, but async is recommended.
 
@@ -443,15 +436,14 @@ class MyWidgetModule:
         "title": "My Widget",
         "description": "Short description shown in the dashboard.",
         "properties": {
-            "enabled":  { "type": "boolean", "default": True,     "title": "Enabled",          "description": "..." },
-            "position": { "type": "string",  "default": "top_left","title": "Screen Position",  "description": "...",
-                          "enum": ["top_left", "top_center", "top_right", "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right"] },
             "interval": { "type": "integer", "default": 60,        "title": "Refresh Interval", "description": "Seconds between updates." },
             "api_key":  { "type": "string",  "default": "",        "title": "API Key",          "description": "Leave empty if not required." }
         }
     }
 ```
 
+
+Only declare your module's own settings. The core adds the standard ones to every module's form itself — `enabled`, `position`, `carousel_group`, `carousel_interval`, `max_width`, `max_height`, `z_index` and `opacity` — and ignores them if your schema declares them too (`mirrordash-cli validate` warns about it).
 
 > [!TIP]
 > The root `title` is the module's **name** in the admin Modules list and settings drawer, so write it as the user would say it: `"Weather"`, not `"Weather Module Settings"`. The root `description` is the one-line text on the module's card; without it, the `description` from `pyproject.toml` is shown.
@@ -465,7 +457,7 @@ The form generator supports **11 input controls**, each triggered automatically 
 > Every supported field type is shown side-by-side: the rendered input on the left, the exact `config_schema.json` snippet to copy on the right.
 
 > [!NOTE]
-> Alternatively, place the schema in a `config_schema.json` file next to `plugin.py`. If no schema is defined at all, the platform falls back to a minimal `enabled` + `position` schema.
+> Alternatively, place the schema in a `config_schema.json` file next to `plugin.py`. If no schema is defined at all, the module only gets the standard settings.
 
 ---
 
@@ -553,7 +545,16 @@ Every MirrorDash module is rendered inside its own **Shadow DOM** boundary on th
 * **Automatic Isolation**: Any classes, IDs, or element styles defined inside your template's `<style>` block (e.g. `.container`, `p`, `.title`) are scoped strictly to your module and will not leak out to affect other widgets or the core page structure.
 * **Global CSS Variables**: System design tokens and CSS variables (e.g. `var(--mirror-primary)`, `--color-primary-white`, etc.) cross the shadow boundary and are fully accessible inside your module's styles. Always utilize these properties.
 * **No Cascading Global Styles**: Outside of custom properties, styles from global stylesheets do not cascade into your module. All module-specific styling must reside inside the module template's `<style>` block.
-* **Scripting Isolation**: Global DOM query functions like `document.querySelector()` or `document.getElementById()` cannot select elements residing inside a module's Shadow DOM. If client-side JavaScript is required, selectors must run relative to the module's shadow root (e.g., `element.shadowRoot.querySelector(...)`).
+* **Scripting Isolation**: Global DOM query functions like `document.querySelector()` or `document.getElementById()` cannot select elements residing inside a module's Shadow DOM, and `document.currentScript` is `null` there. Instead, every `<script>` in your template gets a `root` variable: your module's own shadow root. Query from it, and keep timers on it — it stays the same when you broadcast new HTML, and every instance of your module has its own:
+
+  ```html
+  <div class="clock"></div>
+  <script>
+    const el = root.querySelector('.clock');
+    clearInterval(root._timer);  // the script runs again on every broadcast
+    root._timer = setInterval(() => { el.textContent = new Date().toLocaleTimeString(); }, 1000);
+  </script>
+  ```
 
 ### Browser Target & Engine Compatibility
 
@@ -635,7 +636,7 @@ To provide a smooth experience for users browsing the MirrorDash module store, a
 ## 10. Installing on the Device
 
 ### Via the Admin Dashboard
-Use the **Configuration** tab in the Admin Dashboard to install new modules. The **Updates** tab handles upgrading already-installed packages. Both handle the read-only OverlayFS remount and server restart automatically.
+Use the **Modules** tab in the Admin Dashboard: find and install new modules at the bottom, and update installed ones from their cards. Both handle the read-only OverlayFS remount and server restart automatically.
 
 ### Via API (curl)
 ```bash
@@ -659,6 +660,7 @@ After installing, add your module to `config.json` to assign its screen position
 {
   "modules": {
     "mirrordash-my-widget": {
+      "module": "mirrordash-my-widget",
       "enabled": true,
       "position": "top_left",
       "interval": 30
@@ -667,7 +669,7 @@ After installing, add your module to `config.json` to assign its screen position
 }
 ```
 
-Or use the **Admin Dashboard → Configuration** tab to add and configure it visually.
+The key is the instance id; `module` names the installed module (it defaults to the key, and is needed when you add a second instance like `mirrordash-my-widget-2`). Or use **Admin Dashboard → Modules** to add and configure it visually.
 
 #### Carousel Configuration
 If you have multiple modules in the same region, they stack vertically by default. To make specific modules cycle on a timer instead, you can group them using the `carousel_group` property:

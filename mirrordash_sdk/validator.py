@@ -140,31 +140,21 @@ def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
                 has_schema = True
             else:
                 print("  [!] Warning: No config_schema.json or inline config_schema attribute found.")
-                print("      The module will fallback to default position/interval settings.")
+                print("      The module will only get the standard settings (enabled, position, …).")
                 has_warnings = True
 
         # Validate schema details if config_schema.json is present
         if schema_data:
             properties = schema_data.get("properties", {})
-            required_props = ["enabled", "position", "interval", "show_header"]
-            missing_props = [p for p in required_props if p not in properties]
-            if missing_props:
-                print(f"  [!] Warning: config_schema is missing standard properties: {missing_props}")
+            # The core adds these to every module's settings form; a module redeclaring them is ignored
+            core_fields = ["enabled", "position", "carousel_group", "carousel_interval", "max_width", "max_height", "z_index", "opacity"]
+            redeclared = [p for p in core_fields if p in properties]
+            if redeclared:
+                print(f"  [!] Warning: config_schema declares settings the core already provides: {redeclared}")
+                print("      Remove them; the admin form ignores them and uses the core's own fields.")
                 has_warnings = True
             else:
-                print("  [✓] config_schema contains standard properties (enabled, position, interval, show_header)")
-
-            # Check positions enum
-            pos_prop = properties.get("position", {})
-            enum_vals = pos_prop.get("enum", [])
-            expected_positions = ["top_left", "top_center", "top_right", "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right"]
-            missing_positions = [pos for pos in expected_positions if pos not in enum_vals]
-            if missing_positions:
-                print(f"  [!] Warning: config_schema position enum only contains {len(enum_vals)} positions.")
-                print(f"      Missing: {missing_positions}")
-                has_warnings = True
-            else:
-                print("  [✓] config_schema position enum supports all 9 MirrorDash positions")
+                print("  [✓] config_schema leaves the standard settings (enabled, position, …) to the core")
 
         # Check templates/widget.html
         templates_dir = package_dir / "templates"

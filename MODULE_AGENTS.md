@@ -93,7 +93,7 @@ All module designs must adhere to the MirrorDash **Ethereal Design System** to p
   - **No fixed widths**: Do not use hardcoded pixel widths (`width: 150px`) for lists, columns, or layout elements. Swedish, German, or French text strings can be twice as long as English.
   - Use Flexbox or CSS Grid with flexible sizing (`flex: 1`, `min-width: 0`, `max-content`).
   - Use text-overflow ellipsis utilities to handle long strings gracefully.
-- **Shadow DOM Encapsulation**: Remember that modules render inside Shadow DOM. All widget-specific CSS must reside inside a template `<style>` block. Global styles do not cascade in, and global scripts (`document.querySelector`) cannot select your module's elements. Query relative to the shadow root if client-side JS is needed.
+- **Shadow DOM Encapsulation**: Remember that modules render inside Shadow DOM. All widget-specific CSS must reside inside a template `<style>` block. Global styles do not cascade in, and global scripts (`document.querySelector`) cannot select your module's elements. Every template `<script>` gets `root` (the module's shadow root): query from it and keep timers on it (`clearInterval(root._timer); root._timer = setInterval(...)`). Never use `document.currentScript` (null in a shadow root) or globals (two instances would share them).
 
 ---
 
@@ -104,6 +104,8 @@ Provide a `config_schema` dictionary or a `config_schema.json` to allow the user
 - Use basic JSON schema types (`boolean`, `string`, `integer`).
 - Define title, description, and sensible default values.
 - If providing a set of selections, use `enum` to render a dropdown.
+- Don't declare `enabled`, `position`, `carousel_group`, `carousel_interval`, `max_width`, `max_height`, `z_index` or `opacity`: the core adds them to every module.
+- `self.render_template` / `self.translate` don't exist yet inside `__init__`; use them from `run_loop`.
 
 ---
 

@@ -121,29 +121,6 @@ packages = ["{package_name}"]
     schema_root_fields.append('"type": "object"')
 
     properties_block = """  "properties": {
-    "enabled": {
-      "type": "boolean",
-      "default": true,
-      "title": "Enabled",
-      "description": "Enable or disable this module."
-    },
-    "position": {
-      "type": "string",
-      "default": "middle_center",
-      "enum": [
-        "top_left",
-        "top_center",
-        "top_right",
-        "middle_left",
-        "middle_center",
-        "middle_right",
-        "bottom_left",
-        "bottom_center",
-        "bottom_right"
-      ],
-      "title": "Screen Position",
-      "description": "Where to display this module on the mirror screen."
-    },
     "interval": {
       "type": "integer",
       "default": 30,
@@ -157,7 +134,7 @@ packages = ["{package_name}"]
       "description": "Show or hide the module's header/title."
     }
   },
-  "required": ["enabled", "position", "interval", "show_header"]"""
+  "required": ["interval", "show_header"]"""
 
     schema_content = "{\n  " + ",\n  ".join(schema_root_fields) + ",\n" + properties_block + "\n}\n"
 
