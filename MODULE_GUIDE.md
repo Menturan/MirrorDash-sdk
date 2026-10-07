@@ -397,6 +397,7 @@ The core publishes the sensors and inputs that the user connected under **Admin 
 | `hardware.motion` | `{"motion": true \| false, "sensor": "pir" \| "mmwave"}` | Whenever a PIR or mmWave sensor starts or stops seeing someone. `motion` is `true` while *any* presence sensor sees someone; `sensor` is the one that changed. |
 | `hardware.climate` | `{"temperature_c": 21.5, "humidity": 40}` | Every 30 s while a DHT11 is connected. Temperature is always in °C; convert with the `temperature_unit` global setting. The DHT11 regularly misses a read, so the last good reading may be repeated. |
 | `hardware.light` | `{"lux": 250.0}` | Every 30 s while a BH1750 light sensor is connected. |
+| `hardware.fan` | `{"level": 2, "max_level": 4, "cpu_temperature_c": 62.5}` | Every 30 s while a fan is connected. `level` 0 means off; an on/off fan has `max_level` 1, a PWM fan 4. The fan runs by itself (the kernel switches it by CPU temperature). |
 
 Example: show the room temperature on the mirror and dim the module when nobody is there.
 
