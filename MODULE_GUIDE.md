@@ -383,6 +383,53 @@ async def run_loop(self, broadcast_func):
         await asyncio.sleep(self.interval)
 ```
 
+### Subscriptions and Reloads
+
+When the user saves settings, the core reloads all modules: it creates new instances and **clears every event bus subscription**. Subscribe in `__init__` (as above) so each new instance registers again; there is no need to unsubscribe yourself.
+
+### Hardware Events
+
+The core publishes the sensors and inputs that the user connected under **Admin → Hardware → Sensors & Inputs**. A module never touches the GPIO pins itself (it has no root access); it subscribes to these events instead. An event is only published if the matching device is connected.
+
+| Event | Payload | When |
+|-------|---------|------|
+| `hardware.button` | `{"press": "single" \| "double" \| "triple" \| "long", "action": "<configured action>"}` | On every press of the push button. `action` is what the user chose for that press (`"none"` if nothing), and the core has already carried it out. |
+| `hardware.motion` | `{"motion": true \| false, "sensor": "pir" \| "mmwave"}` | Whenever a PIR or mmWave sensor starts or stops seeing someone. `motion` is `true` while *any* presence sensor sees someone; `sensor` is the one that changed. |
+| `hardware.climate` | `{"temperature_c": 21.5, "humidity": 40}` | Every 30 s while a DHT11 is connected. Temperature is always in °C; convert with the `temperature_unit` global setting. The DHT11 regularly misses a read, so the last good reading may be repeated. |
+| `hardware.light` | `{"lux": 250.0}` | Every 30 s while a BH1750 light sensor is connected. |
+
+Example: show the room temperature on the mirror and dim the module when nobody is there.
+
+```python
+class RoomModule:
+    def __init__(self, config):
+        self.config = config
+        self.temperature = None
+        self.present = True
+        self.changed = asyncio.Event()
+        event_bus = config.get("event_bus")
+        if event_bus:
+            event_bus.subscribe("hardware.climate", self.on_climate)
+            event_bus.subscribe("hardware.motion", self.on_motion)
+
+    def on_climate(self, data):
+        self.temperature = data["temperature_c"]
+        self.changed.set()
+
+    def on_motion(self, data):
+        self.present = data["motion"]
+        self.changed.set()
+
+    async def run_loop(self, broadcast_func):
+        while True:
+            await self.changed.wait()
+            self.changed.clear()
+            html = self.render_template("room.html", temperature=self.temperature, present=self.present)
+            await broadcast_func("mirrordash_room", html)
+```
+
+> Want to use hardware the list doesn't offer yet? Open an issue for the core: new sensor types are added there (they need a device-tree overlay and an entry in the root helper), and then become available to every module as an event.
+
 ---
 
 ## 6. Config Schema (Admin UI)
