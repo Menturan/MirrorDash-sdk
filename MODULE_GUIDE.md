@@ -453,6 +453,9 @@ class MyWidgetModule:
 ```
 
 
+> [!TIP]
+> The root `title` is the module's **name** in the admin Modules list and settings drawer, so write it as the user would say it: `"Weather"`, not `"Weather Module Settings"`. The root `description` is the one-line text on the module's card; without it, the `description` from `pyproject.toml` is shown.
+
 ### Supported field types
 
 The form generator supports **11 input controls**, each triggered automatically by a specific JSON Schema definition. Rather than documenting them here, see the live reference:
