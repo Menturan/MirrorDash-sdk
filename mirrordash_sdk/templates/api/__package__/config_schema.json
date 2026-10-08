@@ -1,0 +1,34 @@
+{
+  "$$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "$title",
+  "description": "$description",
+  "type": "object",
+  "properties": {
+    "api_key": {
+      "type": "string",
+      "format": "password",
+      "default": "",
+      "title": "API Key",
+      "description": "Your key from the service's website. The module's README says where to get one."
+    },
+    "location": {
+      "type": "string",
+      "default": "Stockholm",
+      "title": "Location",
+      "description": "What to look up."
+    },
+    "interval": {
+      "type": "integer",
+      "default": 600,
+      "title": "Update Interval (Seconds)",
+      "description": "Time between updates. Stay within the service's request limits."
+    },
+    "show_header": {
+      "type": "boolean",
+      "default": true,
+      "title": "Show Header",
+      "description": "Show or hide the module's title."
+    }
+  },
+  "required": ["api_key", "location", "interval", "show_header"]
+}

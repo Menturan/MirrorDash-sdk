@@ -1,30 +1,47 @@
 import click
 from pathlib import Path
 
-from .scaffolder import create_module
+from .scaffolder import TEMPLATES, create_module
 from .validator import validate_module
 from .manager import (
     register_module,
     dev_setup_logic,
+    open_when_ready,
     start_server_logic,
     build_module_logic,
     publish_module_logic,
 )
+
+TEMPLATE_HELP = "basic: a module that shows something it works out itself; api: fetches data from an API with an API key"
 
 @click.group()
 def main():
     """MirrorDash developer CLI and tools."""
     pass
 
+@main.command("quickstart")
+@click.argument("name")
+@click.option("--template", "-t", type=click.Choice(TEMPLATES), default="api", show_default=True, help=TEMPLATE_HELP)
+@click.option("--description", "-d", default="A custom module for MirrorDash", help="Module description")
+@click.option("--author", "-a", default="MirrorDash Developer", help="Module author name")
+def quickstart_cmd(name, template, description, author):
+    """Create a module, set up a local mirror with it, start it and open it in the browser."""
+    target = create_module(name, description, author, template=template)
+    dev_setup_logic(str(target), editable=True)
+    print("\nStarting the mirror; the browser opens when it's up. Stop it with Ctrl+C.")
+    open_when_ready()
+    start_server_logic(str(target))
+
 @main.command("create-module")
 @click.argument("name")
+@click.option("--template", "-t", type=click.Choice(TEMPLATES), default="basic", show_default=True, help=TEMPLATE_HELP)
 @click.option("--description", "-d", default="A custom module for MirrorDash", help="Module description")
 @click.option("--author", "-a", default="MirrorDash Developer", help="Module author name")
 @click.option("--icon", "-i", default=None, help="FontAwesome class OR path to a custom SVG file")
 @click.option("--dry-run", is_flag=True, help="Preview generated files without creating them")
-def create_module_cmd(name, description, author, icon, dry_run):
+def create_module_cmd(name, template, description, author, icon, dry_run):
     """Bootstrap a new custom module."""
-    create_module(name, description, author, icon, dry_run)
+    create_module(name, description, author, icon, dry_run, template=template)
 
 @main.command("validate")
 @click.argument("path", default=".", type=click.Path(exists=True, file_okay=False, path_type=Path))

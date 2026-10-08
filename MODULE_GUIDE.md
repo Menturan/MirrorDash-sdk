@@ -1,18 +1,19 @@
 # Module Development Guide
 
-> **TL;DR — Create a module in 3 steps:**
-> 1. `mirrordash-cli create-module mirrordash-my-widget --description "My widget"`
-> 2. Edit `modules/mirrordash-my-widget/mirrordash_my_widget/plugin.py`
-> 3. `uv pip install -e ./modules/mirrordash-my-widget` then restart the mirror
+The reference for building MirrorDash modules. To get going, use the quick start in the
+[README](README.md#quick-start): `uvx mirrordash-sdk quickstart mirrordash-my-widget` creates a module,
+sets up a local mirror with it and opens it. Come back here when you need the details.
+
+> Your module's `run_loop` sends HTML with `broadcast_func`. Fetch data with `self.fetch_json`, show it
+> with the building blocks in §7, keep files in `self.data_dir` (kept) or `self.cache_dir` (may be cleared),
+> and describe its settings in `config_schema.json` to get a form in the admin page.
 >
-> Your module broadcasts HTML via `broadcast_func`. Use `self.data_dir` for persistent files,
-> `self.cache_dir` for temporary files. Add a `config_schema` dict to enable the Admin UI form.
+> `fetch_json` and the building blocks need MirrorDash 0.5 or newer (`dev-setup` installs it).
 
 ## Table of Contents
 
-- [0. Development Environment Setup](#0-development-environment-setup)
-- [1. Quick Start](#1-quick-start)
 - [2. Plugin Class](#2-plugin-class)
+- [2b. Fetching Data](#2b-fetching-data)
 - [3. File Storage](#3-file-storage)
 - [4. HTML Templates (Jinja2)](#4-html-templates-jinja2)
 - [5. Inter-Module Communication (Event Bus)](#5-inter-module-communication-event-bus)
@@ -22,86 +23,6 @@
 - [9. Documentation Guidelines (`README.md`)](#9-documentation-guidelines-readmemd)
 - [10. Installing on the Device](#10-installing-on-the-device)
 - [Appendix: Architecture Overview](#appendix-architecture-overview)
-
----
-
-## 0. Development Environment Setup
-
-To develop and test modules locally, you need to run the core MirrorDash application (`mirrordash`) on your development machine. The SDK CLI (`mirrordash-cli`) scaffolds module packages, but the execution runtime resides in the core application.
-
-Follow these steps to set up your local development environment:
-
-1.  **Create and Activate a Virtual Environment**:
-    Create a virtual environment in your workspace and activate it:
-    ```bash
-    uv venv
-    source .venv/bin/activate
-    ```
-
-2.  **Install the Core MirrorDash Application**:
-    Install the core `mirrordash` package directly from PyPI (or from the official Git repository):
-    ```bash
-    # Install from PyPI
-    uv pip install mirrordash
-
-    # OR: Install from the official Git repository
-    uv pip install git+https://github.com/Menturan/MirrorDash.git
-    ```
-
-3.  **Install Your Custom Module in Editable Mode**:
-    Install your newly scaffolded custom module in editable mode inside the active virtual environment:
-    ```bash
-    uv pip install -e /path/to/modules/mirrordash-my-widget
-    ```
-
-4.  **Start the Local Mirror Development Server**:
-    Start the local Uvicorn development server:
-    ```bash
-    python -m mirrordash_core.main
-    ```
-    *   Mirror Display: `http://localhost:8000/`
-    *   Admin Dashboard: `http://localhost:8000/admin`
-    *   Design Explorer: `http://localhost:8000/design`
-
----
-
-## 1. Quick Start
-
-The fastest way to set up your workspace and create a new module is using the CLI.
-
-### 1. Set Up Environment
-Initialize your local virtual environment and install MirrorDash core:
-```bash
-uvx mirrordash-cli dev-setup
-```
-
-### 2. Scaffold a Module
-Bootstrap your custom module template directory:
-```bash
-# Run directly from PyPI
-uvx mirrordash-cli create-module mirrordash-my-widget --description "My custom widget"
-
-# Or run directly from Git
-uvx --from git+https://github.com/menturan/mirrordash-sdk.git mirrordash-cli create-module mirrordash-my-widget --description "My custom widget"
-```
-
-This generates a fully working module skeleton under `mirrordash-my-widget/` (or `modules/mirrordash-my-widget/` if you are in the core project workspace) featuring:
-- A pre-configured `pyproject.toml` (Hatchling build backend, `jinja2` dependency, correct wheel packaging)
-- A `config_schema.json` with the module's own settings (`interval`, `show_header`); the core adds `enabled`, `position` and the other standard settings itself
-- A `plugin.py` with an async `run_loop` and a Jinja2 template already wired up
-- A `templates/widget.html` starter template
-
-### 3. Register and Install
-Validate the module structure, install it in editable mode inside your virtual environment, and register its default configuration settings in `config.json` automatically:
-```bash
-uvx mirrordash-cli register ./mirrordash-my-widget
-```
-
-### 4. Start Server
-Start the local MirrorDash developer server to preview your widget in real time:
-```bash
-uvx mirrordash-cli start
-```
 
 ---
 
@@ -137,7 +58,7 @@ class MyWidgetModule:
     async def run_loop(self, broadcast_func):
         while True:
             try:
-                # Render HTML using the auto-injected Jinja2 helper (see §3)
+                # Render HTML using the auto-injected Jinja2 helper (see §4)
                 html = self.render_template("widget.html", value="Hello Mirror!")
                 await broadcast_func(self.name, html)
             except Exception as e:
@@ -258,6 +179,39 @@ def run_loop(self, broadcast_func):
 > - If the translation key exists in active/fallback language files, the translated string is returned.
 > - If the key is missing and a `default` is specified, it returns the `default` value.
 > - If the key is missing and `default` is `None` (or omitted), it falls back to returning the `key` string itself (e.g., `self.translate("my_key")` returns `"my_key"`).
+
+---
+
+## 2b. Fetching Data
+
+The mirror gives every module `self.fetch_json` (added after `__init__`, like `render_template`). Use it
+instead of your own HTTP code: it has a timeout, runs without blocking the mirror, and remembers the last
+good answer, so the module keeps showing data when the internet is gone, even after a restart.
+
+```python
+data, error = await self.fetch_json(
+    "https://api.example.com/v1/current",
+    headers={"Authorization": f"Bearer {self.config['api_key']}"},  # keys go in headers
+    params={"q": self.config["location"]},                           # becomes ?q=…
+    timeout=10,
+)
+```
+
+| `error` | Meaning | `data` |
+| :--- | :--- | :--- |
+| `None` | It worked. | The JSON answer. |
+| `"rejected"` | 401/403: usually a wrong or missing API key. | The last good answer, or `None`. |
+| `"offline"` | No answer: no internet, the service is down, or the timeout passed. | The last good answer, or `None`. |
+| `"http <code>"` | Any other HTTP error, e.g. `"http 429"` (too many requests). | The last good answer, or `None`. |
+| `"invalid"` | The answer wasn't JSON. | The last good answer, or `None`. |
+
+- **Keys in headers, not in the URL**: the mirror logs only the host and path of a failed fetch, and never
+  headers, so a key in a header never reaches the logs. Most APIs accept one (`Authorization`, `X-Api-Key`).
+- **Say what is wrong on the screen**: show `data` when you have it, and a `.module-message` line when
+  `error` is set (see §7), for example "Couldn't update. Last updated 14:05.". The `api` template does this.
+- **No retries**: a failed fetch is tried again at the next `interval`. Keep the interval within the
+  service's request limits.
+- **Tests**: replace it with a fake: `module.fetch_json = AsyncMock(return_value=({"value": 21}, None))`.
 
 ---
 
@@ -443,7 +397,7 @@ class MyWidgetModule:
 ```
 
 
-Only declare your module's own settings. The core adds the standard ones to every module's form itself — `enabled`, `position`, `carousel_group`, `carousel_interval`, `max_width`, `max_height`, `z_index` and `opacity` — and ignores them if your schema declares them too (`mirrordash-cli validate` warns about it).
+Only declare your module's own settings. The core adds the standard ones to every module's form itself — `enabled`, `position`, `carousel_group`, `carousel_interval`, `max_width`, `max_height`, `z_index` and `opacity` — and ignores them if your schema declares them too (`mirrordash-sdk validate` warns about it).
 
 > [!TIP]
 > The root `title` is the module's **name** in the admin Modules list and settings drawer, so write it as the user would say it: `"Weather"`, not `"Weather Module Settings"`. The root `description` is the one-line text on the module's card; without it, the `description` from `pyproject.toml` is shown.
@@ -473,26 +427,28 @@ To make designing widgets as fast and simple as possible, MirrorDash runs an int
 * **Features**: Live interactive previews of styling tokens, typography scales, layout wrappers, and copy-pasteable CSS/HTML markups matching the Ethereal Design System.
 
 ### Colors
-- **Primary data** (time, key values): `#ffffff` / `var(--mirror-primary)`
-- **Labels & secondary text**: `#999999` / `var(--mirror-secondary)`
-- **Subtle dividers/hints**: `#666666`
-- **Background**: always `transparent` — never set a background color on your widget root
+Use the design tokens; they reach inside your module:
+- **Primary data** (time, key values): `var(--color-high-contrast)` (#ffffff)
+- **Labels & secondary text**: `var(--color-standard-gray)` (#999999)
+- **Subtle dividers/hints**: `var(--color-dimmed-charcoal)` (#666666)
+- **Background**: always `transparent`; never set a background color on your widget root
 
-### CSS Classes
+### Building blocks
+Every module gets these classes inside its own part of the screen, so most modules need no CSS at all:
+
 | Class | Use for |
 |-------|---------|
-| `.display-xl` | Large display numbers (clock digits, temperatures) |
-| `.module-header` | Small uppercase section title (`<h2>`) |
-| `.text-secondary` | Supporting metadata, labels |
+| `.module-header` | The module's title (`<h2>`), small and uppercase with a line under it |
+| `.display-xl`, `.display-lg` | Large numbers (clock digits, temperatures) |
+| `.headline-md`, `.body-base`, `.body-sm` | Headings and text sizes |
+| `.text-primary`, `.text-secondary`, `.text-dimmed`, `.text-error` | Text colors |
+| `.flex-row` | Items side by side, centered, 8px apart (an icon next to text) |
+| `.flex-row-between` | A full-width row with one item at each end (label and value) |
+| `.flex-column` | Items stacked, 8px apart |
+| `.flex-center` | Centers its content |
+| `.module-message` | A quiet line with an icon: "Couldn't update", "Add an API key", "Nothing today" |
 
-### Zero-CSS Layout Utilities
-
-To lower the learning curve for developers who are unexperienced with CSS, MirrorDash provides pre-built layout helpers in the core stylesheet. You can construct clean, responsive, and perfectly aligned widgets simply by nesting standard classes:
-
-*   **`.flex-row`**: Horizontally aligns items, centers them vertically, and applies a standard `8px` gap. Perfect for aligning an icon next to text.
-*   **`.flex-row-between`**: A horizontal row that stretches to `100%` width and pushes children to the far left and right edges (using `justify-content: space-between`). Ideal for label-value or status telemetry rows.
-*   **`.flex-column`**: Stacks elements vertically with a standard `8px` gap. Perfect for standard widget layout stack blocks.
-*   **`.flex-center`**: Centers child elements both horizontally and vertically.
+`.module-message` example: `<div class="module-message"><i data-lucide="cloud-off"></i><span>Couldn't update.</span></div>`
 
 #### Example Layouts
 
@@ -543,8 +499,8 @@ The system uses **Lucide Icons** as its standard, vector-based line-art iconogra
 Every MirrorDash module is rendered inside its own **Shadow DOM** boundary on the kiosk mirror UI. This guarantees layout robustness but has specific implications for styling and scripting:
 
 * **Automatic Isolation**: Any classes, IDs, or element styles defined inside your template's `<style>` block (e.g. `.container`, `p`, `.title`) are scoped strictly to your module and will not leak out to affect other widgets or the core page structure.
-* **Global CSS Variables**: System design tokens and CSS variables (e.g. `var(--mirror-primary)`, `--color-primary-white`, etc.) cross the shadow boundary and are fully accessible inside your module's styles. Always utilize these properties.
-* **No Cascading Global Styles**: Outside of custom properties, styles from global stylesheets do not cascade into your module. All module-specific styling must reside inside the module template's `<style>` block.
+* **Global CSS Variables**: System design tokens and CSS variables (e.g. `var(--color-high-contrast)`, `--color-primary-white`, etc.) cross the shadow boundary and are fully accessible inside your module's styles. Always utilize these properties.
+* **No Cascading Global Styles**: Apart from the design tokens and the building blocks above, styles from the page don't reach your module. Anything else your module needs goes in a `<style>` block in its template.
 * **Scripting Isolation**: Global DOM query functions like `document.querySelector()` or `document.getElementById()` cannot select elements residing inside a module's Shadow DOM, and `document.currentScript` is `null` there. Instead, every `<script>` in your template gets a `root` variable: your module's own shadow root. Query from it, and keep timers on it — it stays the same when you broadcast new HTML, and every instance of your module has its own:
 
   ```html
@@ -601,18 +557,18 @@ To build and publish manually:
 
 1. **Build the package**:
    ```bash
-   uvx mirrordash-cli build ./mirrordash-my-widget
+   uvx mirrordash-sdk build ./mirrordash-my-widget
    ```
    This generates `.whl` and `.tar.gz` distribution packages inside `dist/`.
 
 2. **Publish the package**:
    ```bash
-   uvx mirrordash-cli publish ./mirrordash-my-widget
+   uvx mirrordash-sdk publish ./mirrordash-my-widget
    ```
    This will run validation checks, verify the build, and prompt you to upload it to PyPI.
 
 > [!NOTE]
-> **Non-Python files (templates, schemas, images) are bundled automatically** when using Hatchling with the `packages` key in `pyproject.toml`. The `mirrordash-cli` scaffolder sets this up for you, so no extra configuration is needed.
+> **Non-Python files (templates, schemas, images) are bundled automatically** when using Hatchling with the `packages` key in `pyproject.toml`. The `mirrordash-sdk` scaffolder sets this up for you, so no extra configuration is needed.
 
 ---
 
@@ -726,4 +682,4 @@ PyPI package names use hyphens (`mirrordash-my-widget`), while Python source dir
 mirrordash_my_widget = "mirrordash_my_widget.plugin:MyWidgetModule"
 ```
 
-The `mirrordash-cli` scaffolder adds this automatically.
+The `mirrordash-sdk` scaffolder adds this automatically.

@@ -155,6 +155,15 @@ def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
                 has_warnings = True
             else:
                 print("  [✓] config_schema leaves the standard settings (enabled, position, …) to the core")
+            # A key typed into the admin page shows in plain text unless the field says it's a password
+            secret_words = ("key", "token", "secret", "password")
+            unmasked = [name for name, prop in properties.items()
+                        if any(word in name.lower() for word in secret_words)
+                        and isinstance(prop, dict) and prop.get("format") != "password"]
+            if unmasked:
+                print(f"  [!] Warning: these settings look secret but show in plain text: {unmasked}")
+                print('      Add "format": "password" to each so the admin page hides what is typed.')
+                has_warnings = True
 
         # Check templates/widget.html
         templates_dir = package_dir / "templates"
@@ -168,13 +177,9 @@ def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
                 has_errors = True
             else:
                 print(f"  [✓] Templates folder contains {len(html_files)} template(s): {[f.name for f in html_files]}")
-                # Check Ethereal design style in html files
                 for html_file in html_files:
                     with open(html_file, "r", encoding="utf-8") as hf:
                         h_content = hf.read()
-                    if "<style>" not in h_content:
-                        print(f"  [!] Warning: Template {html_file.name} does not contain a <style> block for module CSS isolation.")
-                        has_warnings = True
                     if "show_header" not in h_content:
                         print(f"  [!] Warning: Template {html_file.name} does not reference 'show_header' context variable.")
                         has_warnings = True

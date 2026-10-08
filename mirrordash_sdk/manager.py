@@ -7,6 +7,24 @@ import click
 
 from .validator import validate_module
 
+# The oldest core that has what the module templates use (fetch_json, the layout classes)
+CORE_REQUIREMENT = "mirrordash>=0.5"
+CORE_GIT = "git+https://github.com/Menturan/MirrorDash.git"
+DEV_URL = "http://localhost:8000/"
+DEV_PASSWORD = "mirrordash"
+# Runs in the dev venv: sets the admin password only if none is set, printing "set" when it did
+SET_DEV_PASSWORD = """\
+import secrets, sys
+from mirrordash_core.config import load_config, save_config
+from mirrordash_core.api.admin_shared import hash_password
+config = load_config()
+if "admin_auth" not in config:
+    salt = secrets.token_hex(16)
+    config["admin_auth"] = {"hash": hash_password(sys.argv[1], salt), "salt": salt}
+    save_config(config)
+    print("set")
+"""
+
 def register_module(path_str: str, python_exe: Path = None):
     try:
         import tomllib
@@ -124,7 +142,7 @@ def register_module(path_str: str, python_exe: Path = None):
         
     print("\nSuccess! Module registered and ready for development.")
     print("Run your MirrorDash server locally:")
-    print("  python -m mirrordash_core.main")
+    print("  mirrordash-sdk start")
 
 def dev_setup_logic(path_str: str, core_git: str = None, editable: bool = False):
     path = Path(path_str).resolve()
@@ -164,9 +182,6 @@ def dev_setup_logic(path_str: str, core_git: str = None, editable: bool = False)
         sys.exit(1)
 
     # 3. Install MirrorDash core
-    install_target = core_git if core_git else "mirrordash"
-    print(f"Installing MirrorDash core ({install_target}) into venv...")
-    
     use_uv = False
     try:
         res = subprocess.run(["uv", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -175,13 +190,19 @@ def dev_setup_logic(path_str: str, core_git: str = None, editable: bool = False)
     except Exception:
         pass
 
-    if use_uv:
-        cmd = ["uv", "pip", "install", "--python", str(venv_python), install_target]
-    else:
-        cmd = [str(venv_python), "-m", "pip", "install", install_target]
-        
-    print(f"Running: {' '.join(cmd)}")
-    subprocess.run(cmd, check=True)
+    def install(target, check):
+        cmd = (["uv", "pip", "install", "--python", str(venv_python), target] if use_uv
+               else [str(venv_python), "-m", "pip", "install", target])
+        print(f"Installing MirrorDash core ({target}) into venv...\nRunning: {' '.join(cmd)}")
+        return subprocess.run(cmd, check=check).returncode == 0
+
+    # ponytail: until a core with everything the templates use is on PyPI, fall back to core's master.
+    # Once it is released the first install succeeds and the fallback is never used.
+    if core_git:
+        install(core_git, check=True)
+    elif not install(CORE_REQUIREMENT, check=False):
+        print(f"\n{CORE_REQUIREMENT} isn't on PyPI yet; installing the newest core from GitHub instead.")
+        install(CORE_GIT, check=True)
     
     # 4. Install and register module if editable is true
     if editable:
@@ -191,7 +212,13 @@ def dev_setup_logic(path_str: str, core_git: str = None, editable: bool = False)
             register_module(str(path), python_exe=venv_python)
         else:
             print(f"\nWarning: --editable was set, but no pyproject.toml was found at {path}.", file=sys.stderr)
-            
+
+    # 5. A fresh mirror shows only "set an admin password" until one is set, hiding the modules.
+    # Set a known one for this dev mirror (if there's none yet), through the core's own code.
+    res = subprocess.run([str(venv_python), "-c", SET_DEV_PASSWORD, DEV_PASSWORD], capture_output=True, text=True)
+    if res.returncode == 0 and res.stdout.strip() == "set":
+        print(f"\nAdmin page of this dev mirror: {DEV_URL}admin (password: {DEV_PASSWORD})")
+
     print("\nSuccess! Development environment is set up.")
     print("To activate the virtual environment:")
     if os.name == "nt":
@@ -199,7 +226,27 @@ def dev_setup_logic(path_str: str, core_git: str = None, editable: bool = False)
     else:
         print(f"  source {venv_path}/bin/activate")
     print("To start the MirrorDash server:")
-    print("  mirrordash-cli start")
+    print("  mirrordash-sdk start")
+
+def open_when_ready(url: str = DEV_URL, wait: float = 60) -> None:
+    """Open url in the browser as soon as the server answers (in the background, so the server can start)."""
+    import threading
+    import time
+    import urllib.request
+    import webbrowser
+
+    def poll():
+        deadline = time.monotonic() + wait
+        while time.monotonic() < deadline:
+            try:
+                urllib.request.urlopen(url, timeout=2).close()
+                webbrowser.open(url)
+                return
+            except OSError:
+                time.sleep(1)
+        print(f"The server didn't answer at {url} within {wait:.0f} seconds; open it yourself when it does.")
+
+    threading.Thread(target=poll, daemon=True).start()
 
 def start_server_logic(path_str: str):
     path = Path(path_str).resolve()

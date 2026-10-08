@@ -1,0 +1,8 @@
+{
+  "title": "$title",
+  "missing_key": "Example data. Add an API key in the module's settings.",
+  "key_rejected": "The API key was rejected. Check it in the module's settings.",
+  "offline": "Can't reach the service.",
+  "fetch_failed": "Couldn't update.",
+  "last_updated": "Last updated {time}."
+}

@@ -1,0 +1,8 @@
+{
+  "title": "$title",
+  "missing_key": "Exempeldata. Lägg till en API-nyckel i modulens inställningar.",
+  "key_rejected": "API-nyckeln godkändes inte. Kontrollera den i modulens inställningar.",
+  "offline": "Når inte tjänsten.",
+  "fetch_failed": "Kunde inte uppdatera.",
+  "last_updated": "Senast uppdaterad {time}."
+}

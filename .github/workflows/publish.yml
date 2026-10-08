@@ -1,0 +1,68 @@
+name: Publish to PyPI
+
+# Publishes mirrordash-sdk to PyPI when a tag vX.Y.Z is pushed (git tag v0.2.0 && git push origin v0.2.0).
+# PyPI trusts the publish job in the pypi environment (trusted publishing), so no token is stored.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
+  build:
+    name: Build package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+
+      # PyPI publishes whatever pyproject.toml says, so a mismatched tag would ship the wrong version under it
+      - name: Check the tag matches pyproject.toml
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "::error::Tag $TAG does not match pyproject.toml version $VERSION (expected v$VERSION)"
+            exit 1
+          fi
+
+      - name: Build package distribution
+        run: uv build
+
+      - name: Save package
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  # Only this job can publish (id-token), and it runs no build code: it uploads what the build job made
+  publish:
+    name: Publish to PyPI
+    needs: [test, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: pypi
+      url: https://pypi.org/p/mirrordash-sdk
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download package
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2

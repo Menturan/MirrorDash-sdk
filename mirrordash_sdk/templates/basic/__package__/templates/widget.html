@@ -1,0 +1,10 @@
+<!-- Built from the mirror's own classes, so no CSS is needed. See http://localhost:8000/design -->
+<div class="flex-column">
+    {% if show_header %}
+    <h2 class="module-header">{{ translations.get("title", "$title") }}</h2>
+    {% endif %}
+    <div class="flex-row-between body-sm">
+        <span class="text-secondary">{{ translations.get("last_checked", "Last checked") }}</span>
+        <span class="text-primary">{{ current_time }}</span>
+    </div>
+</div>

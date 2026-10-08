@@ -1,0 +1,18 @@
+<!-- Built from the mirror's own classes, so no CSS is needed. See http://localhost:8000/design -->
+<div class="flex-column">
+    {% if show_header %}
+    <h2 class="module-header">{{ translations.get("title", "$title") }}</h2>
+    {% endif %}
+    {% if data %}
+    <span class="display-lg">{{ data.value }}</span>
+    {% for label, value in data.rows %}
+    <div class="flex-row-between body-sm">
+        <span class="text-secondary">{{ label }}</span>
+        <span class="text-primary">{{ value }}</span>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% if message %}
+    <div class="module-message"><i data-lucide="{{ icon }}"></i><span>{{ message }}</span></div>
+    {% endif %}
+</div>
