@@ -3,6 +3,7 @@ from pathlib import Path
 
 from .scaffolder import TEMPLATES, create_module
 from .validator import validate_module
+from .release import release_module
 from .manager import (
     register_module,
     dev_setup_logic,
@@ -46,6 +47,15 @@ def create_module_cmd(name, template, description, author, icon, dry_run):
 def validate_cmd(path):
     """Validate a module's structure and conformity."""
     validate_module(str(path))
+
+@main.command("release")
+@click.argument("version", required=False)
+@click.option("--path", "-p", default=".", type=click.Path(exists=True, file_okay=False, path_type=Path), help="The module's folder (default: .)")
+@click.option("--dry-run", is_flag=True, help="Show what it would do, change nothing")
+def release_cmd(version, path, dry_run):
+    """Release a new version of the module, e.g. `release 1.0.2`: sets it in pyproject.toml, tags it,
+    pushes and makes the GitHub Release that mirrors install from."""
+    release_module(path, version, dry_run)
 
 @main.command("register")
 @click.argument("path", default=".", type=click.Path(exists=True, file_okay=False, path_type=Path))

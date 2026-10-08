@@ -31,11 +31,12 @@ uvx mirrordash-sdk create-module <name> [-t basic|api] # just create the module
 uvx mirrordash-sdk dev-setup -e                        # a local mirror (.venv) with this module on it
 uvx mirrordash-sdk start                               # start the local mirror: http://localhost:8000/
 uvx mirrordash-sdk validate .                          # check the module before you push it
+uvx mirrordash-sdk release 1.0.0                       # a new version mirrors can install
 ```
 
 ## Share your module
 
-Push it to GitHub and make a **GitHub Release** (tag `v0.1.0`, the version in `pyproject.toml`). Mirrors install it from its Git URL under **Admin → Modules**, and offer updates when you make a new release. Nothing needs to be built or uploaded anywhere else. Details: [MODULE_GUIDE.md, part 11](https://github.com/Menturan/MirrorDash-sdk/blob/master/MODULE_GUIDE.md#11-sharing-your-module).
+Push it to GitHub once, then run `uvx mirrordash-sdk release 1.0.0` for every version. It sets the version in `pyproject.toml`, tags it `v1.0.0`, pushes, and makes the **GitHub Release** (with the [`gh`](https://cli.github.com/) tool, or it gives you the link). Mirrors install the module from its Git URL under **Admin → Modules**, and offer updates when you make a new release. Nothing needs to be built or uploaded anywhere else. Details: [MODULE_GUIDE.md, part 11](https://github.com/Menturan/MirrorDash-sdk/blob/master/MODULE_GUIDE.md#11-sharing-your-module).
 
 ## Learn more
 

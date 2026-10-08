@@ -595,7 +595,7 @@ Inputs**):
 
 | Message | Data | When |
 | :--- | :--- | :--- |
-| `hardware.button` | `{"press": "single" \| "double" \| "triple" \| "long", "action": "…"}` | On every press. `action` is what the user chose for that press (already carried out). |
+| `hardware.button` | `{"press": "single" \| "double" \| "triple" \| "long", "action": "…", "button": "button" \| "button_2" \| "button_3" \| "button_4"}` | On every press. `action` is what the user chose for that press (already carried out); `button` says which of up to four buttons it was. |
 | `hardware.motion` | `{"motion": true \| false, "sensor": "pir" \| "mmwave"}` | When someone comes or goes. |
 | `hardware.climate` | `{"temperature_c": 21.5, "humidity": 40}` | Every 30 s. Always °C; convert with the `temperature_unit` global setting. |
 | `hardware.light` | `{"lux": 250.0}` | Every 30 s. |
@@ -655,8 +655,13 @@ A module is shared through GitHub. Every mirror can install it from there, and f
    git remote add origin https://github.com/<you>/mirrordash-outside.git
    git push -u origin HEAD
    ```
-4. **Make a GitHub Release.** The version in `pyproject.toml` (`version = "0.1.0"`) and the release's tag
-   must match: on GitHub, **Releases → Draft a new release**, create the tag `v0.1.0`, and press
+4. **Make a release**, from the module's folder:
+   ```bash
+   uvx mirrordash-sdk release 0.1.0
+   ```
+   It checks the module, runs its tests, asks you to confirm, then tags the version `v0.1.0`, pushes it
+   and makes the **GitHub Release**. That last step needs the [`gh`](https://cli.github.com/) tool
+   (log in once with `gh auth login`); without it, the command prints a link where you press
    **Publish release**.
 
 Now your module shows up under **Modules** in every mirror's admin page, and anyone can install it with
@@ -667,8 +672,9 @@ under **Modules → Install a Module from GitHub**.
 > **Without a GitHub Release, mirrors can't see or install the module.** They always install the newest
 > release, not what's on your main branch.
 
-**A new version:** raise `version` in `pyproject.toml` (`0.1.0` → `0.1.1`), push, and make a new release
-with the tag `v0.1.1`. Mirrors offer the update on the module's card.
+**A new version:** commit your changes, then `uvx mirrordash-sdk release 0.1.1`. It sets `version` in
+`pyproject.toml` to the same number as the tag, so the mirror shows the version you released. Mirrors
+offer the update on the module's card. (`--dry-run` shows what it would do without changing anything.)
 
 **The README** is the user's manual. It should say what the module shows, step by step how to get any
 API key it needs and where to enter it, and show a `screenshot.png` (GitHub shows it on the module's
