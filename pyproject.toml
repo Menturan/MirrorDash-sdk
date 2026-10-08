@@ -1,6 +1,6 @@
 [project]
 name = "mirrordash-sdk"
-version = "0.2.0"
+version = "0.3.0"
 description = "Create and try MirrorDash modules"
 readme = "README.md"
 license = { file = "LICENSE.md" }
