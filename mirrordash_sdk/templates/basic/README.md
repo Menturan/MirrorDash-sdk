@@ -6,10 +6,12 @@ $description
 
 ```bash
 uv run pytest                    # the module's tests
-uvx mirrordash-sdk validate .    # checks the module before you publish it
+uvx mirrordash-sdk validate .    # checks the module before you push it
 ```
 
 Try it on a local mirror: see the [MirrorDash SDK](https://github.com/Menturan/mirrordash-sdk#quick-start).
+
+Share it: push to GitHub and make a GitHub Release (tag `v` + the version in `pyproject.toml`); mirrors install it from the Git URL.
 
 ## Settings
 

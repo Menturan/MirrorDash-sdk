@@ -19,7 +19,7 @@ sets up a local mirror with it and opens it. Come back here when you need the de
 - [5. Inter-Module Communication (Event Bus)](#5-inter-module-communication-event-bus)
 - [6. Config Schema (Admin UI)](#6-config-schema-admin-ui)
 - [7. Styling Guidelines](#7-styling-guidelines)
-- [8. Building & Publishing](#8-building--publishing)
+- [8. Sharing Your Module](#8-sharing-your-module)
 - [9. Documentation Guidelines (`README.md`)](#9-documentation-guidelines-readmemd)
 - [10. Installing on the Device](#10-installing-on-the-device)
 - [Appendix: Architecture Overview](#appendix-architecture-overview)
@@ -522,53 +522,34 @@ The MirrorDash kiosk display uses **Cog (WPE WebKit)** as its renderer, rather t
   - Test custom stylesheets and script features against WebKit behaviors.
   - Avoid heavy JavaScript frameworks; utilize vanilla JS to maintain WPE WebKit's high-performance rendering.
 
-## 8. Building & Publishing
+## 8. Sharing Your Module
 
-### Installing Directly from Git (Recommended)
+A module is shared through its Git repository on GitHub. There is nothing to build or upload: the mirror
+installs straight from the repository, and uv builds the package while installing.
 
-By default, MirrorDash modules are designed to be installed directly from a Git repository (like GitHub). This makes deployment extremely simple and avoids the need for external package indexes.
-
-Anyone can install your module directly using its Git URL:
-```bash
-# Install the latest version from main branch
-uv pip install git+https://github.com/username/mirrordash-my-widget.git
-
-# Install a specific tag or version (recommended for stability)
-uv pip install git+https://github.com/username/mirrordash-my-widget.git@v0.1.0
-```
-
-To support versioned releases, developers are encouraged to push Git tags (e.g., `v0.1.0`) to their repository.
+1. **Push the module to GitHub** (a public repository, e.g. `github.com/you/mirrordash-my-widget`).
+2. **Make a GitHub Release.** Set `version` in `pyproject.toml`, commit and push, then on GitHub:
+   **Releases → Draft a new release**, create the tag `v0.1.0` (the same version) and publish it.
+   Or with the GitHub CLI: `gh release create v0.1.0 --generate-notes`.
+3. **Install it on a mirror**: **Admin → Modules → Install**, with the repository's Git URL.
 
 > [!IMPORTANT]
-> **GitHub Releases Required**: MirrorDash requires all GitHub-hosted modules to have at least one official **GitHub Release**. If a repository has no releases:
-> * It will be ignored by the Admin Dashboard's community module scanner/store.
-> * Manual installation via its Git URL will be blocked with a `400 Bad Request` error.
-> * Automatic version update checking will be bypassed.
-> 
-> Always draft a release on GitHub for your tags to ensure compatibility.
+> **A GitHub Release is required.** The mirror installs a module's latest release, not whatever is on
+> its main branch. A repository without a release:
+> * can't be installed from its Git URL (the mirror answers `400 Bad Request`),
+> * isn't shown in the Admin Dashboard's module list,
+> * gets no update notices.
+>
+> For a new version, repeat step 2 with a higher version; mirrors then offer the update on the module's card.
 
----
-
-### Publishing to PyPI (Optional)
-
-Publishing your module to PyPI is optional. You should only publish to PyPI if you want to make your module easily discoverable on [pypi.org](https://pypi.org) and allow users to install it via a standard package name (e.g., `uv pip install mirrordash-my-widget`).
-
-To build and publish manually:
-
-1. **Build the package**:
-   ```bash
-   uvx mirrordash-sdk build ./mirrordash-my-widget
-   ```
-   This generates `.whl` and `.tar.gz` distribution packages inside `dist/`.
-
-2. **Publish the package**:
-   ```bash
-   uvx mirrordash-sdk publish ./mirrordash-my-widget
-   ```
-   This will run validation checks, verify the build, and prompt you to upload it to PyPI.
+What the mirror runs is the same as:
+```bash
+uv pip install git+https://github.com/you/mirrordash-my-widget.git@v0.1.0
+```
 
 > [!NOTE]
-> **Non-Python files (templates, schemas, images) are bundled automatically** when using Hatchling with the `packages` key in `pyproject.toml`. The `mirrordash-sdk` scaffolder sets this up for you, so no extra configuration is needed.
+> **Non-Python files (templates, schemas, images) are included automatically**: the `packages` key in the
+> generated `pyproject.toml` takes the whole package directory along.
 
 ---
 
@@ -596,11 +577,11 @@ Use the **Modules** tab in the Admin Dashboard: find and install new modules at 
 
 ### Via API (curl)
 ```bash
-# Install from PyPI or Git URL
+# Install from a Git URL (the repository needs a GitHub Release)
 curl -X POST http://localhost:8000/admin/install \
      -H "Content-Type: application/json" \
      -H "X-API-Key: <your-password>" \
-     -d '{"package_name": "mirrordash-my-widget"}'
+     -d '{"package_name": "git+https://github.com/you/mirrordash-my-widget.git@v0.1.0"}'
 
 # Install from local path (development)
 curl -X POST http://localhost:8000/admin/install \
@@ -673,7 +654,7 @@ graph TD
 
 ### Package naming: hyphens vs. underscores
 
-PyPI package names use hyphens (`mirrordash-my-widget`), while Python source directories and entry points use underscores (`mirrordash_my_widget`). The core loader and Admin Dashboard automatically normalize these mismatches, so both forms work interchangeably in `config.json`. That said, keeping your folder name and entry point key consistent (both underscores) avoids any ambiguity.
+Package names use hyphens (`mirrordash-my-widget`), while Python source directories and entry points use underscores (`mirrordash_my_widget`). The core loader and Admin Dashboard automatically normalize these mismatches, so both forms work interchangeably in `config.json`. That said, keeping your folder name and entry point key consistent (both underscores) avoids any ambiguity.
 
 ### Entry point registration (`pyproject.toml`)
 

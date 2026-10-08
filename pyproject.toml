@@ -1,7 +1,7 @@
 [project]
 name = "mirrordash-sdk"
 version = "0.2.0"
-description = "Create, try and publish MirrorDash modules"
+description = "Create and try MirrorDash modules"
 readme = "README.md"
 license = { file = "LICENSE.md" }
 requires-python = ">=3.14"

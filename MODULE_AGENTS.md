@@ -110,3 +110,4 @@ Before submitting a pull request or code change:
    - Step-by-step setup instructions for API keys/tokens (if any).
    - A `screenshot.png` at the package root, referenced in the markdown.
 3. Run the test suite: `uv run pytest`, and `uvx mirrordash-sdk validate .`.
+4. Share through GitHub only: push, then make a GitHub Release whose tag is `v` + the `pyproject.toml` version. Don't publish modules to PyPI; mirrors install from the Git URL and need the release.

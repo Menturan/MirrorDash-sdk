@@ -8,8 +8,6 @@ from .manager import (
     dev_setup_logic,
     open_when_ready,
     start_server_logic,
-    build_module_logic,
-    publish_module_logic,
 )
 
 TEMPLATE_HELP = "basic: a module that shows something it works out itself; api: fetches data from an API with an API key"
@@ -68,19 +66,6 @@ def dev_setup_cmd(path: Path, core_git: str, editable: bool):
 def start_cmd(path: Path):
     """Start the MirrorDash application."""
     start_server_logic(str(path))
-
-@main.command("build")
-@click.option("--path", "-p", default=".", type=click.Path(exists=True, file_okay=False, path_type=Path), help="Path to module directory (default: .)")
-def build_cmd(path: Path):
-    """Build the module distribution package (wheel & sdist)."""
-    build_module_logic(str(path))
-
-@main.command("publish")
-@click.option("--path", "-p", default=".", type=click.Path(exists=True, file_okay=False, path_type=Path), help="Path to module directory (default: .)")
-@click.option("--force", "-f", is_flag=True, help="Force publish even if validation fails")
-def publish_cmd(path: Path, force: bool):
-    """Validate and publish the module to PyPI."""
-    publish_module_logic(str(path), force)
 
 if __name__ == "__main__":
     main()

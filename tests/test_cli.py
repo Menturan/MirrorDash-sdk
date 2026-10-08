@@ -177,37 +177,3 @@ def test_start_server_interrupt(mock_run):
         result = runner.invoke(main, ["start", "--path", "."])
         assert result.exit_code == 0
         assert "MirrorDash server stopped." in result.output
-
-@patch("subprocess.run")
-def test_build_command(mock_run):
-    res = MagicMock()
-    res.returncode = 0
-    mock_run.return_value = res
-    
-    runner = CliRunner()
-    with runner.isolated_filesystem():
-        runner.invoke(main, ["create-module", "mirrordash-test"])
-        
-        result = runner.invoke(main, ["build", "--path", "mirrordash-test"])
-        assert result.exit_code == 0
-        assert "Building package at" in result.output
-        mock_run.assert_called()
-
-@patch("subprocess.run")
-def test_publish_command_success(mock_run):
-    res = MagicMock()
-    res.returncode = 0
-    mock_run.return_value = res
-    
-    runner = CliRunner()
-    with runner.isolated_filesystem():
-        runner.invoke(main, ["create-module", "mirrordash-test"])
-        
-        dist_dir = Path("mirrordash-test") / "dist"
-        dist_dir.mkdir(exist_ok=True)
-        (dist_dir / "mirrordash_test-0.1.0-py3-none-any.whl").touch()
-        
-        result = runner.invoke(main, ["publish", "--path", "mirrordash-test", "--force"])
-        assert result.exit_code == 0
-        assert "Publishing package at" in result.output
-        mock_run.assert_called()
