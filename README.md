@@ -45,4 +45,4 @@ uvx mirrordash-sdk publish                             # validate and upload to 
 uv sync && uv run pytest   # the tests also generate every template and run its tests
 ```
 
-Releases: bump `version` in `pyproject.toml`, push, then `git tag vX.Y.Z && git push origin vX.Y.Z`; GitHub Actions tests and publishes it to PyPI.
+Releases: `python3 scripts/release.py` (try `--dry-run` first). It checks master and the tests, sets the version, pushes and tags `vX.Y.Z`; GitHub Actions then tests, builds and publishes it to PyPI.
