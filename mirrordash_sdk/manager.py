@@ -163,7 +163,8 @@ def dev_setup_logic(path_str: str, core_git: str = None, editable: bool = False)
             
         if use_uv:
             print("Using 'uv' to create virtual environment.")
-            subprocess.run(["uv", "venv", str(venv_path)], check=True)
+            # The core needs Python 3.14; uv downloads it if this computer has an older one
+            subprocess.run(["uv", "venv", "--python", "3.14", str(venv_path)], check=True)
         else:
             print("Using 'venv' module to create virtual environment.")
             subprocess.run([sys.executable, "-m", "venv", str(venv_path)], check=True)
@@ -200,7 +201,7 @@ def dev_setup_logic(path_str: str, core_git: str = None, editable: bool = False)
     if core_git:
         install(core_git, check=True)
     elif not install(CORE_REQUIREMENT, check=False):
-        print(f"\n{CORE_REQUIREMENT} isn't on PyPI yet; installing the newest core from GitHub instead.")
+        print(f"\nCouldn't install {CORE_REQUIREMENT} from PyPI; installing the newest core from GitHub instead.")
         install(CORE_GIT, check=True)
     
     # 4. Install and register module if editable is true
@@ -272,7 +273,9 @@ def start_server_logic(path_str: str):
         cmd = ["python", "-m", "mirrordash_core.main"]
         print("Warning: No local virtual environment (.venv) found. Starting MirrorDash server using system/global 'python'...")
         
+    # Development mode: the mirror restarts by itself when a file in the module changes (.py, .html, .json, .css)
+    print("Watching for changes: save a file and the mirror reloads it.")
     try:
-        subprocess.run(cmd)
+        subprocess.run(cmd, cwd=path, env={**os.environ, "MIRRORDASH_DEV": "1"})
     except KeyboardInterrupt:
         print("\nMirrorDash server stopped.")

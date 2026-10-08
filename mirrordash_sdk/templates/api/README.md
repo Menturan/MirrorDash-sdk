@@ -33,6 +33,6 @@ Share it: push to GitHub and make a GitHub Release (tag `v` + the version in `py
 
 ## Screenshot
 
-Put a picture of the module named `screenshot.png` next to this file; the mirror's module list shows it.
+Put a picture of the module named `screenshot.png` next to this file; GitHub shows it on your module's page. (The mirror's module list shows your repository's GitHub description, its "About" text.)
 
 ![Screenshot](screenshot.png)

@@ -10,7 +10,9 @@ You need [uv](https://docs.astral.sh/uv/getting-started/installation/). Then one
 uvx mirrordash-sdk quickstart mirrordash-my-widget
 ```
 
-The module shows example data right away. Change it in `mirrordash-my-widget/mirrordash_my_widget/`; restart with `uvx mirrordash-sdk start` (inside the module directory) to see your changes. The admin page of this local mirror is at `http://localhost:8000/admin`, password `mirrordash`.
+The module shows example data right away. Change it in `mirrordash-my-widget/mirrordash_my_widget/`: save a file and the mirror shows the change by itself. Stop it with `Ctrl+C`, start it again with `uvx mirrordash-sdk start` in the module's folder. The admin page of this local mirror is at `http://localhost:8000/admin`, password `mirrordash`.
+
+**New to this?** The [module guide](https://github.com/Menturan/MirrorDash-sdk/blob/master/MODULE_GUIDE.md) walks you through building a real module step by step, in about half an hour.
 
 ## Templates
 
@@ -19,7 +21,7 @@ The module shows example data right away. Change it in `mirrordash-my-widget/mir
 | `api` (default for `quickstart`) | fetches data from a web API with an API key and shows a value and a few rows | `--template api` |
 | `basic` | works out what to show by itself, without the internet | `--template basic` |
 
-Both show their data with the mirror's own building blocks (big numbers, label–value rows, messages), so they need no CSS, and both come with tests (`uv run pytest`).
+Both show their data with components from the mirror's component library (`http://localhost:8000/design`), so they need no CSS, and both come with tests (`uv run pytest`).
 
 ## Commands
 
@@ -33,13 +35,13 @@ uvx mirrordash-sdk validate .                          # check the module before
 
 ## Share your module
 
-Push it to GitHub and make a **GitHub Release** (tag `v0.1.0`, the version in `pyproject.toml`). Mirrors install it from its Git URL under **Admin → Modules**, and offer updates when you make a new release. Nothing needs to be built or uploaded anywhere else. Details: [MODULE_GUIDE.md §8](https://github.com/Menturan/MirrorDash-sdk/blob/master/MODULE_GUIDE.md#8-sharing-your-module).
+Push it to GitHub and make a **GitHub Release** (tag `v0.1.0`, the version in `pyproject.toml`). Mirrors install it from its Git URL under **Admin → Modules**, and offer updates when you make a new release. Nothing needs to be built or uploaded anywhere else. Details: [MODULE_GUIDE.md, part 11](https://github.com/Menturan/MirrorDash-sdk/blob/master/MODULE_GUIDE.md#11-sharing-your-module).
 
 ## Learn more
 
-- **[MODULE_GUIDE.md](https://github.com/Menturan/MirrorDash-sdk/blob/master/MODULE_GUIDE.md)**: the reference: the plugin class, `fetch_json`, settings, translations, the building blocks, sharing.
+- **[MODULE_GUIDE.md](https://github.com/Menturan/MirrorDash-sdk/blob/master/MODULE_GUIDE.md)**: a step-by-step tutorial, then everything else: the component library, `fetch_json`, settings, translations, testing, sharing, troubleshooting.
 - **[MODULE_AGENTS.md](https://github.com/Menturan/MirrorDash-sdk/blob/master/MODULE_AGENTS.md)**: the same rules, short, for AI coding agents.
-- `http://localhost:8000/design` while your local mirror runs: every building block with markup to copy.
+- `http://localhost:8000/design` while your local mirror runs: the component library, every building block with code to copy.
 
 ## Developing the SDK itself
 

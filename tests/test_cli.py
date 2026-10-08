@@ -155,7 +155,8 @@ def test_start_server_venv(mock_run):
         result = runner.invoke(main, ["start", "--path", "."])
         assert result.exit_code == 0
         assert "Starting MirrorDash server using virtual environment python" in result.output
-        mock_run.assert_called_with([str(venv_python), "-m", "mirrordash_core.main"])
+        assert mock_run.call_args.args[0] == [str(venv_python), "-m", "mirrordash_core.main"]
+        assert mock_run.call_args.kwargs["env"]["MIRRORDASH_DEV"] == "1"  # reloads on save
 
 @patch("subprocess.run")
 def test_start_server_no_venv(mock_run):
@@ -168,7 +169,8 @@ def test_start_server_no_venv(mock_run):
         result = runner.invoke(main, ["start", "--path", "."])
         assert result.exit_code == 0
         assert "Warning: No local virtual environment (.venv) found" in result.output
-        mock_run.assert_called_with(["python", "-m", "mirrordash_core.main"])
+        assert mock_run.call_args.args[0] == ["python", "-m", "mirrordash_core.main"]
+        assert mock_run.call_args.kwargs["env"]["MIRRORDASH_DEV"] == "1"  # reloads on save
 
 @patch("subprocess.run", side_effect=KeyboardInterrupt)
 def test_start_server_interrupt(mock_run):

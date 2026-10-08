@@ -1,666 +1,742 @@
-# Module Development Guide
+# Build a MirrorDash module
 
-The reference for building MirrorDash modules. To get going, use the quick start in the
-[README](README.md#quick-start): `uvx mirrordash-sdk quickstart mirrordash-my-widget` creates a module,
-sets up a local mirror with it and opens it. Come back here when you need the details.
+A **module** is one small panel on the mirror: the time, the weather, your calendar. You write it in
+Python and HTML. Python decides *what* to show (for example, fetches the weather), and a small HTML file
+decides *how* it looks.
 
-> Your module's `run_loop` sends HTML with `broadcast_func`. Fetch data with `self.fetch_json`, show it
-> with the building blocks in §7, keep files in `self.data_dir` (kept) or `self.cache_dir` (may be cleared),
-> and describe its settings in `config_schema.json` to get a form in the admin page.
->
-> `fetch_json` and the building blocks need MirrorDash 0.5 or newer (`dev-setup` installs it).
+This guide takes you from nothing to a finished module you can share. Part 1 and 2 are a hands-on
+tutorial; the rest is reference you can come back to.
 
-## Table of Contents
+**You need:** basic Python (functions, classes, dictionaries), a terminal, and
+[uv](https://docs.astral.sh/uv/getting-started/installation/) (a tool that installs Python packages).
+For sharing your module at the end, you also need a GitHub account. Words in *italics* are explained in
+[Words used in this guide](#words-used-in-this-guide) at the end.
 
-- [2. Plugin Class](#2-plugin-class)
-- [2b. Fetching Data](#2b-fetching-data)
-- [3. File Storage](#3-file-storage)
-- [4. HTML Templates (Jinja2)](#4-html-templates-jinja2)
-- [5. Inter-Module Communication (Event Bus)](#5-inter-module-communication-event-bus)
-- [6. Config Schema (Admin UI)](#6-config-schema-admin-ui)
-- [7. Styling Guidelines](#7-styling-guidelines)
-- [8. Sharing Your Module](#8-sharing-your-module)
-- [9. Documentation Guidelines (`README.md`)](#9-documentation-guidelines-readmemd)
-- [10. Installing on the Device](#10-installing-on-the-device)
-- [Appendix: Architecture Overview](#appendix-architecture-overview)
+## Contents
+
+1. [Your first module (5 minutes)](#1-your-first-module-5-minutes)
+2. [Tutorial: show the weather outside](#2-tutorial-show-the-weather-outside)
+3. [How a module works](#3-how-a-module-works)
+4. [Design: the component library](#4-design-the-component-library)
+5. [Fetching data](#5-fetching-data)
+6. [Settings](#6-settings)
+7. [Translations](#7-translations)
+8. [Saving files](#8-saving-files)
+9. [Hardware and other modules](#9-hardware-and-other-modules)
+10. [Testing](#10-testing)
+11. [Sharing your module](#11-sharing-your-module)
+12. [Troubleshooting](#12-troubleshooting)
+13. [Reference: what the mirror gives your module](#13-reference-what-the-mirror-gives-your-module)
+14. [Words used in this guide](#words-used-in-this-guide)
 
 ---
 
-## 2. Plugin Class
+## 1. Your first module (5 minutes)
 
-Every module is a Python class with two required methods.
+Open a terminal in the folder where you keep your projects and run:
+
+```bash
+uvx mirrordash-sdk quickstart mirrordash-outside
+```
+
+This one command:
+
+1. creates the folder `mirrordash-outside` with a working module in it,
+2. sets up a small MirrorDash mirror on your computer (in `mirrordash-outside/.venv`),
+3. adds your module to that mirror,
+4. starts the mirror and opens it in your browser at `http://localhost:8000/`.
+
+**You should see:** a panel with the title **OUTSIDE**, a big **21**, the rows **Min 18** and **Max 24**,
+and the line *"Example data. Add an API key in the module's settings."* That is your module, showing
+example data.
+
+Good to know:
+
+- **Stop the mirror** with `Ctrl+C` in the terminal. **Start it again** from the module's folder:
+  ```bash
+  cd mirrordash-outside
+  uvx mirrordash-sdk start
+  ```
+- **Changes show up by themselves.** While the mirror runs, save a file in the module and the mirror
+  restarts and shows the change after a few seconds. You don't need to reload the browser.
+- **The admin page** of your local mirror is at `http://localhost:8000/admin`, password `mirrordash`.
+  That's where users change your module's settings.
+- **The component library** is at `http://localhost:8000/design`: every building block you can use for
+  the look, with code to copy. More in [part 4](#4-design-the-component-library).
+
+---
+
+## 2. Tutorial: show the weather outside
+
+In six small steps you turn the example into a real module that shows the temperature, wind and humidity
+outside. Keep the mirror running (part 1) and the browser open next to your editor. After each step,
+save and look at the browser.
+
+The files you will change are in `mirrordash-outside/mirrordash_outside/`.
+
+### Step 1: Change the title
+
+Open `mirrordash_outside/translations/en.json`. It holds the texts your module shows, in English. Change
+the title:
+
+```json
+"title": "Outside",
+```
+
+(Leave the other lines as they are.)
+
+**You should see:** nothing new yet, the title was already "Outside". Try `"Weather outside"` instead,
+save, and watch the title change. Then change it back to `"Outside"`.
+
+### Step 2: Fetch real data
+
+The example data comes from `plugin.py`. Now it should fetch real weather from
+[Open-Meteo](https://open-meteo.com), a free weather service that needs no API key. Replace everything
+in `mirrordash_outside/plugin.py` with:
 
 ```python
 import asyncio
 import logging
 
-logger = logging.getLogger("mirrordash.modules.my_widget")
+logger = logging.getLogger("mirrordash.modules.mirrordash_outside")
 
-class MyWidgetModule:
-    config_schema = {
-        "title": "My Widget",
-        "description": "Displays something cool on the mirror.",
-        "properties": {
-            "interval": {
-                "type": "integer", "default": 60,
-                "title": "Refresh Interval", "description": "Seconds between updates."
-            }
-        }
-    }
+# Open-Meteo: free weather data, no API key needed (https://open-meteo.com)
+URL = "https://api.open-meteo.com/v1/forecast"
+
+
+def parse(data: dict, show_wind: bool) -> dict:
+    """Pick what to show from Open-Meteo's answer: one big value and a few rows."""
+    now = data["current"]
+    rows = [("Humidity", f"{now['relative_humidity_2m']} %")]
+    if show_wind:
+        rows.insert(0, ("Wind", f"{now['wind_speed_10m']} km/h"))
+    return {"value": f"{round(now['temperature_2m'])}°", "rows": rows}
+
+
+class OutsideModule:
+    # Keeps pytest from collecting this class as a test
+    __test__ = False
 
     def __init__(self, config):
         self.config = config
-        self.name = "mirrordash_my_widget"
-        self.interval = config.get("interval", 60)
-        self.data_dir = config.get("data_dir")   # persistent storage (backed up)
-        self.cache_dir = config.get("cache_dir")  # transient storage (excluded from backups)
+        self.name = "mirrordash_outside"
+        self.interval = config.get("interval", 600)
+        self.show_wind = config.get("show_wind", True)  # a setting you add in step 4
+        # Where the mirror is: set once for the whole mirror, under Settings in the admin page
+        self.latitude = config.get("globals", {}).get("latitude", 59.33)
+        self.longitude = config.get("globals", {}).get("longitude", 18.07)
 
     async def run_loop(self, broadcast_func):
+        """Runs as long as the mirror does: fetch, show, wait, repeat."""
         while True:
             try:
-                # Render HTML using the auto-injected Jinja2 helper (see §4)
-                html = self.render_template("widget.html", value="Hello Mirror!")
-                await broadcast_func(self.name, html)
+                await broadcast_func(self.name, await self.render())
+            except asyncio.CancelledError:
+                raise  # the mirror is stopping this module: let it
             except Exception as e:
-                logger.error(f"Error in {self.name}: {e}")
+                logger.error(f"{self.name}: {e}", exc_info=True)
             await asyncio.sleep(self.interval)
+
+    async def render(self) -> str:
+        data, error = await self.fetch_json(URL, params={
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "current": "temperature_2m,wind_speed_10m,relative_humidity_2m",
+        })
+        message = self.translate("fetch_failed", "Couldn't update.") if error else None
+        shown = parse(data, self.show_wind) if data else None
+        return self.render_template("widget.html", data=shown, message=message, icon="cloud-off")
 ```
 
-### Lifecycle
+What it does, from the bottom up:
 
-| Method | Purpose |
-|--------|---------|
-| `__init__(self, config)` | Receives the module's config dict from `config.json`. Store any settings you need. `self.render_template` and `self.translate` are added after `__init__` returns, so don't call them here. |
-| `run_loop(self, broadcast_func)` | Loop forever and broadcast HTML updates. Started when the mirror starts, again after a crash or if it returns, and on a fresh instance every time the settings are saved (each save stops and recreates all modules). |
+- `render()` asks Open-Meteo for the current weather with `self.fetch_json` (a helper the mirror gives
+  every module, see [part 5](#5-fetching-data)), turns the answer into what to show with `parse()`, and
+  fills in `templates/widget.html` with it.
+- `run_loop()` runs as long as the mirror does: it shows the result, waits `interval` seconds (600 = 10
+  minutes), and starts over. `broadcast_func` is how you send the result to the screen.
+- `__init__()` reads the module's settings from `config`. The mirror's own location (latitude and
+  longitude) comes from the mirror's global settings.
 
-`broadcast_func(name, html)` puts `html` in the module's place on the screen. The first argument is kept for compatibility and ignored; the core uses the instance id.
+The example also had a setting for an API key, which this module doesn't need. Replace everything in
+`mirrordash_outside/config_schema.json` with:
 
-If you define a **synchronous** `run_loop` (no `async`), the core loader will automatically run it in a background thread so it won't block the event loop. Sync mode is fine for simple modules, but async is recommended.
-
-### Crash Recovery
-
-To ensure high ambient reliability, the MirrorDash backend runs each module's `run_loop` inside an auto-restarting recovery wrapper (`run_with_recovery`).
-- **Auto-restart**: If your module throws an unhandled exception inside its run loop, it will be automatically restarted.
-- **Exponential Backoff**: To protect resources and prevent infinite crash loops, restarts delay by an exponential backoff starting at `5` seconds, doubling on each subsequent crash (`10s`, `20s`, `40s`, etc.), up to a maximum delay cap of `300` seconds (5 minutes).
-- **Backoff Reset**: The backoff delay resets back to `5` seconds once the module runs successfully without crashing.
-
-### Global Settings
-
-The core loader automatically injects a `globals` dictionary into the module's `config` parameter under the `"globals"` key. This dictionary contains system-wide configuration preferences (configured in the Admin Dashboard or `config.json`) that all modules can fall back to.
-
-Supported global configuration keys include:
-
-| Key | Type | Example / Format | Purpose |
-|-----|------|-----------------|---------|
-| `language` | `string` | `"en"`, `"sv"`, `"de"` | Preferred language for localization. |
-| `timezone` | `string` | `"Europe/Stockholm"` | Timezone name for date and time calculations (e.g. standard `zoneinfo`). |
-| `time_format` | `string` | `"24h"`, `"12h"` | Standard clock representation. |
-| `temperature_unit` | `string` | `"C"`, `"F"` | Standard scale for thermometer widgets. |
-| `distance_unit` | `string` | `"km"`, `"miles"` | Standard scale for distances/travel. |
-| `latitude` | `number` | `59.3293` | Latitude decimal coordinates for weather or astronomy APIs. |
-| `longitude` | `number` | `18.0686` | Longitude decimal coordinates. |
-
-#### Using Globals for Fallback Values
-
-> [!IMPORTANT]
-> **Always Respect Global Settings:** To ensure a consistent and cohesive user experience across the mirror HUD, all modules must respect and inherit settings defined under the global configuration block. If your module formats dates, displays times, shows temperatures or distances, translates text, or uses geographic coordinates, you must query these global settings first before falling back to any hardcoded default value.
-
-We recommend checking for module-specific config values first, falling back to the global settings, and finally falling back to a hardcoded default:
-
-```python
-def __init__(self, config):
-    global_cfg = config.get("globals", {})
-    
-    # Instance config takes precedence, otherwise fall back to global
-    self.time_format = config.get("format") or global_cfg.get("time_format", "24h")
-    
-    # Load timezone from globals, defaulting to Stockholm
-    self.timezone_name = global_cfg.get("timezone", "Europe/Stockholm")
-```
-
-### Localization / Translations
-
-MirrorDash supports optional localized text using JSON translation files. The core automatically scans for a `translations/` directory inside your package and loads translation dictionaries dynamically.
-
-#### Directory Structure
-
-Place translation files in a `translations/` folder at the root of your package:
-
-```
-mirrordash-my-widget/
-├── mirrordash_my_widget/
-│   ├── translations/
-│   │   ├── en.json       # Fallback translations (Required)
-│   │   └── sv.json       # Swedish translations (Optional)
-│   ├── templates/
-│   │   └── widget.html
-│   ├── __init__.py
-│   └── plugin.py
-```
-
-Translation files must be standard JSON objects containing key-value mappings. For example, `en.json`:
 ```json
 {
-  "title": "My Widget",
-  "last_checked": "Last checked"
+  "title": "Outside",
+  "description": "The weather outside, right now.",
+  "type": "object",
+  "properties": {
+    "interval": {
+      "type": "integer",
+      "default": 600,
+      "title": "Update Interval (Seconds)",
+      "description": "Time between updates."
+    },
+    "show_header": {
+      "type": "boolean",
+      "default": true,
+      "title": "Show Header",
+      "description": "Show or hide the module's title."
+    }
+  }
 }
 ```
 
-#### How it works
+**You should see:** the real temperature outside (in Stockholm, the default location), with
+**Wind** and **Humidity** below it. The example-data line is gone.
 
-1. The core first loads the fallback `en.json` (English).
-2. The core then checks the global user preference `globals.language`. If it is set to something else (e.g., `"sv"`), the core loads `sv.json` and merges it over the English base. This guarantees that missing translation keys always fall back cleanly to English.
-3. The merged dictionary is injected into your config parameters as `translations` and attached to your module instance as `self.translations`.
-4. A translation helper method is also attached: `self.translate(key, default)`.
+### Step 3: Change the look with the component library
 
-#### Using Translations in Templates
+The rows are a *data list*. Let's show wind and humidity side by side instead, as a *stats grid*:
 
-When rendering templates, `translations` is **automatically injected** into your Jinja2 rendering context. You can reference keys directly:
+1. Open `http://localhost:8000/design` and scroll to **Extended Layout Elements → Stats Grid**. That's
+   the look we want.
+2. Its code shows the pattern: a `stats-grid` with one `stats-grid__item` per value.
+
+Replace everything in `mirrordash_outside/templates/widget.html` with:
 
 ```html
-<div class="my-widget">
-    <h2>{{ translations.get("title", "Fallback Title") }}</h2>
-    <p>{{ translations.get("last_checked", "Checked") }}: {{ current_time }}</p>
+<div class="flex-column">
+    {% if show_header %}
+    <h2 class="module-header">{{ translations.get("title", "Outside") }}</h2>
+    {% endif %}
+    {% if data %}
+    <span class="display-lg">{{ data.value }}</span>
+    <div class="stats-grid">
+        {% for label, value in data.rows %}
+        <div class="stats-grid__item">
+            <span class="stats-grid__value">{{ value }}</span>
+            <span class="stats-grid__label">{{ label }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% if message %}
+    <div class="module-message"><i data-lucide="{{ icon }}"></i><span>{{ message }}</span></div>
+    {% endif %}
 </div>
 ```
 
-#### Using Translations in Python Code
+The `{{ ... }}` and `{% ... %}` parts are *Jinja*: `{{ data.value }}` puts in a value from Python, and
+`{% if %}` / `{% for %}` show parts only when needed or once per row.
 
-If you need a translated string inside your Python loop, use the injected `self.translate(key, default=None)` helper:
+**You should see:** the temperature, and wind and humidity next to each other underneath.
 
-```python
-def run_loop(self, broadcast_func):
-    status_label = self.translate("last_checked", "Checked")
-    logger.info(f"Using translation: {status_label}")
+### Step 4: Add a setting
+
+Users should be able to turn the wind off. Settings are described in `config_schema.json`; the admin
+page builds a form from it. Add a `show_wind` setting: replace everything in
+`mirrordash_outside/config_schema.json` with:
+
+```json
+{
+  "title": "Outside",
+  "description": "The weather outside, right now.",
+  "type": "object",
+  "properties": {
+    "show_wind": {
+      "type": "boolean",
+      "default": true,
+      "title": "Show Wind",
+      "description": "Show the wind speed."
+    },
+    "interval": {
+      "type": "integer",
+      "default": 600,
+      "title": "Update Interval (Seconds)",
+      "description": "Time between updates."
+    },
+    "show_header": {
+      "type": "boolean",
+      "default": true,
+      "title": "Show Header",
+      "description": "Show or hide the module's title."
+    }
+  }
+}
 ```
 
-> [!NOTE]
-> **Fallback Behavior**:
-> - If the translation key exists in active/fallback language files, the translated string is returned.
-> - If the key is missing and a `default` is specified, it returns the `default` value.
-> - If the key is missing and `default` is `None` (or omitted), it falls back to returning the `key` string itself (e.g., `self.translate("my_key")` returns `"my_key"`).
+`plugin.py` already reads it: `self.show_wind = config.get("show_wind", True)`.
+
+Now try it as a user would:
+
+1. Open `http://localhost:8000/admin` and log in with `mirrordash`.
+2. Open **Modules**, find **Outside** and press **Configure**.
+3. Under **Module Settings**, turn **Show Wind** off, then press **Save Configuration** at the bottom.
+
+**You should see:** the mirror shows only the humidity. Turn it on again and the wind comes back.
+
+### Step 5: Run the tests
+
+Tests check that your module still works after a change, without starting the mirror. Replace everything
+in `tests/test_plugin.py` (in the module's main folder, next to `pyproject.toml`) with:
+
+```python
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
+from mirrordash_outside.plugin import OutsideModule, parse
+
+ANSWER = {"current": {"temperature_2m": 13.8, "wind_speed_10m": 14.8, "relative_humidity_2m": 79}}
+
+
+def make_module(**settings):
+    """The module as the mirror sets it up, with the mirror's helpers replaced by fakes."""
+    module = OutsideModule(settings)
+    module.render_template = MagicMock(side_effect=lambda name, **context: context)  # returns what the template gets
+    module.translate = lambda key, default=None: default
+    module.fetch_json = AsyncMock(return_value=(ANSWER, None))
+    return module
+
+
+def test_parse_rounds_the_temperature_and_can_leave_out_the_wind():
+    assert parse(ANSWER, show_wind=True) == {"value": "14°", "rows": [("Wind", "14.8 km/h"), ("Humidity", "79 %")]}
+    assert parse(ANSWER, show_wind=False)["rows"] == [("Humidity", "79 %")]
+
+
+@pytest.mark.asyncio
+async def test_shows_the_weather():
+    shown = await make_module().render()
+    assert shown["data"]["value"] == "14°"
+    assert shown["message"] is None
+
+
+@pytest.mark.asyncio
+async def test_says_so_when_it_cant_update():
+    module = make_module()
+    module.fetch_json.return_value = (None, "offline")
+    shown = await module.render()
+    assert shown["data"] is None
+    assert shown["message"] == "Couldn't update."
+```
+
+Then, in the module's folder:
+
+```bash
+uv run pytest
+```
+
+**You should see:** `3 passed`. Break something on purpose (for example, change `round(` to `int(` in
+`parse()`), run the tests again and see one fail. Change it back.
+
+### Step 6: Share it
+
+Check the module, then follow [part 11](#11-sharing-your-module) to put it on GitHub:
+
+```bash
+uvx mirrordash-sdk validate .
+```
+
+**You should see:** `STATUS: PASS WITH WARNINGS`. The only warning is the missing `screenshot.png`; take
+a screenshot of your module in the browser and save it as `screenshot.png` in the module's folder.
+
+You've built a real module. The rest of this guide explains each part in more detail.
 
 ---
 
-## 2b. Fetching Data
+## 3. How a module works
 
-The mirror gives every module `self.fetch_json` (added after `__init__`, like `render_template`). Use it
-instead of your own HTTP code: it has a timeout, runs without blocking the mirror, and remembers the last
-good answer, so the module keeps showing data when the internet is gone, even after a restart.
+A module made with `create-module` or `quickstart` looks like this:
+
+```
+mirrordash-outside/                  the module's folder (and later its GitHub repository)
+├── pyproject.toml                   name, version, and how the mirror finds the module
+├── README.md                        what it does and how to set it up, for users
+├── mirrordash_outside/              the module's code
+│   ├── plugin.py                    Python: what to show, and when
+│   ├── templates/widget.html        HTML: how it looks
+│   ├── config_schema.json           its settings in the admin page
+│   ├── translations/en.json         its texts (sv.json etc. for other languages)
+│   └── icon.svg                     its icon in the admin page
+└── tests/test_plugin.py             its tests
+```
+
+**What happens when the mirror starts:**
+
+1. The mirror finds your module through the *entry point* in `pyproject.toml` (`create-module` writes it
+   for you).
+2. It creates your class: `OutsideModule(config)`. `config` holds the module's settings.
+3. It gives the object a few helpers: `self.render_template`, `self.translate` and `self.fetch_json`.
+   They don't exist yet inside `__init__`, so use them from `run_loop`.
+4. It starts `run_loop(broadcast_func)`, which runs as long as the mirror does. Each time it has
+   something new to show, it calls `await broadcast_func(self.name, html)`.
+
+**`async` and `await`:** the mirror runs all modules at the same time. `async def` marks a function that
+can wait without blocking the others, and `await` is where it waits: for data (`await self.fetch_json(...)`),
+for the screen (`await broadcast_func(...)`) or for time (`await asyncio.sleep(...)`). Never use
+`time.sleep()` or `requests`: they block the whole mirror.
+
+**When `run_loop` stops and starts again:**
+
+- When the user changes a setting, the mirror stops every module and creates them again with the new
+  settings. That's why you read settings in `__init__`.
+- If `run_loop` crashes, the mirror logs the error and starts it again after 5 seconds, then 10, 20 and
+  so on, at most every 5 minutes. Catch errors inside the loop (as the tutorial does) so one bad answer
+  doesn't stop the module.
+- When the mirror stops, `run_loop` gets an `asyncio.CancelledError`. Let it through with
+  `except asyncio.CancelledError: raise` (`mirrordash-sdk validate` checks for it).
+
+---
+
+## 4. Design: the component library
+
+**Start every design at `http://localhost:8000/design`** (while your local mirror runs). It's the
+mirror's component library: every building block, how it looks, and the HTML to copy. Everything there
+works in your module, except the parts marked *"The mirror's own UI"*.
+
+How to use it:
+
+1. Find a component that looks like what you want to show.
+2. Press **Copy** and paste the code into `templates/widget.html`.
+3. Replace the example texts with your values: `{{ data.value }}`, or `{% for %}` for one row per item.
+
+The most useful components:
+
+| Component | Use it for |
+| :--- | :--- |
+| `module-header` | The module's title, at the top. Wrap it in `{% if show_header %}` so users can hide it. |
+| `display-xl`, `display-lg` | One big number: a time, a temperature. |
+| `data-list` | Rows with a label on the left and a value on the right. Can show up/down values in color. |
+| `stats-grid` | Two or three values side by side, each with a small label. |
+| `forecast-grid` | Days in a row, each with a name, an icon and a value (a weather forecast). |
+| `agenda-list` | Things that happen on a date: calendar events, deliveries. |
+| `gauge-bar` | How full something is, as a bar: a battery, a download. |
+| `alert-callout` | A warning that must stand out. |
+| `status-indicator` | A small green or red dot: online or not. |
+| `module-message` | A quiet line with an icon: "Couldn't update", "Nothing today", "Add an API key". |
+| `flex-row`, `flex-column`, `flex-row-between` | Putting things next to or under each other. |
+| `text-primary`, `text-secondary`, `text-dimmed` | White, gray and dark gray text. |
+
+**Icons:** find one at [lucide.dev/icons](https://lucide.dev/icons) and use its name:
+`<i data-lucide="cloud-rain"></i>`. The mirror draws it.
+
+**Rules for the mirror's look** (the component library already follows them):
+
+- **No background color** on your module: it floats on the black mirror.
+- **No fixed widths** like `width: 150px` on text: Swedish or German words are often longer than English.
+- The mirror's browser is **WebKit** (like Safari), not Chrome. Plain HTML, CSS and JavaScript work; avoid
+  brand-new or Chrome-only features.
+
+**When the library isn't enough:** add a `<style>` block to `widget.html`. Your styles only affect your
+module, because each module lives in its own *shadow DOM*: styles from outside don't get in, and yours
+don't get out. Use the mirror's colors through its variables, for example
+`color: var(--color-high-contrast)` (white), `var(--color-standard-gray)` (gray) or
+`var(--color-dimmed-charcoal)` (dark gray).
+
+**JavaScript:** a `<script>` in `widget.html` gets a variable `root`: your module's own part of the page.
+Find your elements with `root.querySelector(...)`, not `document.querySelector(...)` (which can't see
+inside your module). The script runs again each time you broadcast new HTML, so keep timers on `root`:
+
+```html
+<div class="display-xl clock"></div>
+<script>
+  const el = root.querySelector('.clock');
+  clearInterval(root._timer);  // stop the timer from the previous update
+  root._timer = setInterval(() => { el.textContent = new Date().toLocaleTimeString(); }, 1000);
+</script>
+```
+
+---
+
+## 5. Fetching data
+
+Use `self.fetch_json` for any web *API* that answers in JSON. It has a timeout, doesn't block the
+mirror, and remembers the last good answer, so the module keeps showing data when the internet is gone,
+even after a restart.
 
 ```python
 data, error = await self.fetch_json(
     "https://api.example.com/v1/current",
-    headers={"Authorization": f"Bearer {self.config['api_key']}"},  # keys go in headers
-    params={"q": self.config["location"]},                           # becomes ?q=…
+    headers={"Authorization": f"Bearer {self.config['api_key']}"},  # an API key goes in a header
+    params={"q": "Stockholm"},                                       # becomes ?q=Stockholm
     timeout=10,
 )
 ```
 
+It always gives back two things: `data` (the answer) and `error` (what went wrong, or `None`).
+
 | `error` | Meaning | `data` |
 | :--- | :--- | :--- |
-| `None` | It worked. | The JSON answer. |
-| `"rejected"` | 401/403: usually a wrong or missing API key. | The last good answer, or `None`. |
-| `"offline"` | No answer: no internet, the service is down, or the timeout passed. | The last good answer, or `None`. |
-| `"http <code>"` | Any other HTTP error, e.g. `"http 429"` (too many requests). | The last good answer, or `None`. |
+| `None` | It worked. | The answer. |
+| `"rejected"` | The service said no (401/403): usually a wrong or missing API key. | The last good answer, or `None`. |
+| `"offline"` | No answer: no internet, the service is down, or it took too long. | The last good answer, or `None`. |
+| `"http <code>"` | Another error from the service, for example `"http 429"`: too many requests. | The last good answer, or `None`. |
 | `"invalid"` | The answer wasn't JSON. | The last good answer, or `None`. |
 
-- **Keys in headers, not in the URL**: the mirror logs only the host and path of a failed fetch, and never
-  headers, so a key in a header never reaches the logs. Most APIs accept one (`Authorization`, `X-Api-Key`).
-- **Say what is wrong on the screen**: show `data` when you have it, and a `.module-message` line when
-  `error` is set (see §7), for example "Couldn't update. Last updated 14:05.". The `api` template does this.
-- **No retries**: a failed fetch is tried again at the next `interval`. Keep the interval within the
-  service's request limits.
-- **Tests**: replace it with a fake: `module.fetch_json = AsyncMock(return_value=({"value": 21}, None))`.
+- **Show what you have, and say what's wrong:** show `data` when there is any, and a `module-message` when
+  `error` is set, like the tutorial does.
+- **API keys go in `headers`, never in the URL.** The mirror never writes headers to its log, so the key
+  stays secret. Most APIs say in their documentation which header they want (`Authorization`,
+  `X-Api-Key`, …). Let the user enter the key as a setting (see [part 6](#6-settings)).
+- **No retries:** a failed fetch is simply tried again at the next `interval`. Keep the interval within
+  what the service allows; free APIs often allow a request every few minutes.
+- **Need an API key to start with?** `uvx mirrordash-sdk create-module mirrordash-x --template api`
+  gives you a module that already has an API key setting, example data until a key is entered, and
+  messages for every error.
 
 ---
 
-## 3. File Storage
+## 6. Settings
 
-The mirror OS runs on a **read-only OverlayFS** to protect the SD card. Never write files inside your package directory.
+`config_schema.json` describes your module's settings. The admin page builds a form from it, and your
+module gets the values in `config` (read them in `__init__`):
 
-The system's central configuration and write-accessible directories are located in the user's home directory:
+```json
+{
+  "title": "Outside",
+  "description": "The weather outside, right now.",
+  "type": "object",
+  "properties": {
+    "city":    { "type": "string",  "default": "Stockholm", "title": "City", "description": "Which city to show." },
+    "api_key": { "type": "string",  "default": "", "format": "password", "title": "API Key", "description": "Your key from the service." },
+    "show_wind": { "type": "boolean", "default": true, "title": "Show Wind", "description": "Show the wind speed." }
+  }
+}
+```
 
-| Path | Config key | Backed up? | Use for |
-|------|-----------|-----------|---------|
-| `~/.mirrordash/data/config.json` | N/A | ✅ Yes | Global mirror settings, modules activation & settings (resolves to environment `MYMM_CONFIG_PATH` if set, or falls back to local repo in dev mode) |
-| `~/.mirrordash/data/<module>` | `data_dir` | ✅ Yes | SQLite DBs, user settings, persistent state |
-| `~/.mirrordash/cache/<module>` | `cache_dir` | ❌ No | Downloaded icons, API response cache, temp files |
+```python
+self.city = config.get("city", "Stockholm")
+```
+
+- `title` at the top is the module's name in the admin page ("Outside", not "Outside Module Settings");
+  `description` is the line under it.
+- Each setting has a `type` (`string`, `integer`, `number`, `boolean`), a `default`, a `title` and a
+  `description`.
+- **Every kind of field** (text, number, switch, slider, dropdown, list, color, password, …) is shown
+  with its JSON in the component library: `http://localhost:8000/design#forms`.
+- **Secrets** (API keys, tokens, passwords) get `"format": "password"`, so the admin page hides what is
+  typed. `mirrordash-sdk validate` warns if you forget.
+- **Don't add these yourself:** `enabled`, `position`, `carousel_group`, `carousel_interval`,
+  `max_width`, `max_height`, `z_index` and `opacity`. The mirror adds them to every module's form.
+- When the user changes a setting, the mirror restarts your module with the new values.
+
+**The mirror's global settings** are the same for all modules. Use them instead of asking the user again:
+
+```python
+place = config.get("globals", {})
+latitude = place.get("latitude", 59.33)
+```
+
+| Key | Example | Meaning |
+| :--- | :--- | :--- |
+| `language` | `"sv"` | The mirror's language. |
+| `timezone` | `"Europe/Stockholm"` | Its time zone. |
+| `time_format` | `"24h"` or `"12h"` | How to show times. |
+| `temperature_unit` | `"C"` or `"F"` | Celsius or Fahrenheit. |
+| `distance_unit` | `"km"` or `"miles"` | Kilometres or miles. |
+| `latitude`, `longitude` | `59.3293`, `18.0686` | Where the mirror is. |
+
+---
+
+## 7. Translations
+
+Put your module's texts in `translations/en.json` (English, always needed) and, if you like, other
+languages next to it (`sv.json` for Swedish, `de.json` for German):
+
+```json
+{ "title": "Outside", "fetch_failed": "Couldn't update." }
+```
+
+The mirror picks the file for its language and falls back to English for anything missing.
+
+- **In `widget.html`:** `{{ translations.get("title", "Outside") }}`
+- **In Python:** `self.translate("fetch_failed", "Couldn't update.")`
+
+The second value is used when the text is in no file at all.
+
+---
+
+## 8. Saving files
+
+The mirror's system files can't be written to (it protects its SD card). Never write files next to your
+code. Use the two folders the mirror gives you:
+
+| `config` key | What it's for | Kept in backups? |
+| :--- | :--- | :--- |
+| `config.get("data_dir")` | Things to keep: saved state, a small database. | Yes |
+| `config.get("cache_dir")` | Things you can download again: images, temporary files. | No |
 
 ```python
 import os
 
-def __init__(self, config):
-    self.data_dir = config.get("data_dir")
-    self.cache_dir = config.get("cache_dir")
-
-    self.db_path = os.path.join(self.data_dir, "data.db") if self.data_dir else None
-    self.icon_path = os.path.join(self.cache_dir, "icon.png") if self.cache_dir else None
+self.data_dir = config.get("data_dir")
+self.state_file = os.path.join(self.data_dir, "state.json")
 ```
+
+Each copy of your module (a user can add the same module twice) gets its own folders.
+`self.fetch_json` already keeps its answers in `cache_dir`, so you don't need to.
 
 ---
 
-## 4. HTML Templates (Jinja2)
+## 9. Hardware and other modules
 
-`jinja2` is pre-installed in the MirrorDash environment. The recommended approach is to keep your HTML in a `templates/` folder inside your package.
-
-### Auto-injected helper (recommended)
-
-If your package contains a `templates/` folder, the core loader automatically injects a `self.render_template(name, **ctx)` helper — no setup needed:
-
-```python
-async def run_loop(self, broadcast_func):
-    while True:
-        html = self.render_template("widget.html", value="Dynamic Content")
-        await broadcast_func(self.name, html)
-        await asyncio.sleep(self.interval)
-```
-
-#### Auto-injected Context Variables
-
-When you invoke `self.render_template(template_name, **context)`, the core loader automatically injects the following context variables for you:
-- **`translations`**: The merged dictionary containing localized strings for the current active language (merged over the fallback English base).
-- **`show_header`**: A boolean (`True` or `False`) reflecting whether the user wants this module's header shown on the screen (defaults to `True`). You should use this to conditionally render your header (e.g., `{% if show_header %}<h2 class="module-header label-caps">{{ translations.get("title") }}</h2>{% endif %}`).
-
-### Inline template (quick & simple)
-
-For small snippets, use `jinja2.Template` directly in your Python file:
-
-```python
-from jinja2 import Template
-
-TEMPLATE = Template("""
-<div class="my-widget">
-    <h2 class="module-header">My Widget</h2>
-    {% if value %}
-        <div class="display-xl">{{ value }}</div>
-    {% else %}
-        <p class="text-secondary">Loading...</p>
-    {% endif %}
-</div>
-""")
-
-# In run_loop:
-html = TEMPLATE.render(value="42°")
-```
-
-> [!NOTE]
-> If you need custom Jinja2 filters or a non-standard loader, you can configure the `Environment` manually in `__init__`. See the [Jinja2 docs](https://jinja.palletsprojects.com/en/stable/api/#jinja2.Environment) for details.
-
----
-
-## 5. Inter-Module Communication (Event Bus)
-
-When modules need to share state or communicate with each other, they should never read/write directly to another module's data or cache directory. Instead, they should use the central Event Bus.
-
-The core loader automatically injects an `event_bus` instance into your module's config dictionary under the `"event_bus"` key. The event bus supports subscribing, unsubscribing, and publishing events asynchronously.
-
-### Subscribing to Events
-
-You can register a callback function (either synchronous or an `async` coroutine) to run when a specific event type is published. It is recommended to prefix event names with your module name to avoid conflicts (e.g., `weather:update`).
-
-```python
-class MyWidgetModule:
-    def __init__(self, config):
-        self.event_bus = config.get("event_bus")
-        
-        # Register a callback to listen for temperature updates
-        if self.event_bus:
-            self.event_bus.subscribe("weather:update", self.on_weather_update)
-
-    def on_weather_update(self, weather_data):
-        self.temp = weather_data.get("temp")
-        logger.info(f"Received temperature update: {self.temp}")
-```
-
-If you subscribe using an `async def` callback, it will be scheduled as a task in the running asyncio event loop automatically.
-
-### Publishing Events
-
-Any module can publish an event with an optional payload dictionary, list, string, or object. All registered callback functions will be invoked asynchronously.
-
-```python
-async def run_loop(self, broadcast_func):
-    while True:
-        sensor_data = {"temperature": 21.5, "humidity": 45}
-        
-        if self.event_bus:
-            self.event_bus.publish("sensor:data", sensor_data)
-            
-        await asyncio.sleep(self.interval)
-```
-
-### Subscriptions and Reloads
-
-When the user saves settings, the core reloads all modules: it creates new instances and **clears every event bus subscription**. Subscribe in `__init__` (as above) so each new instance registers again; there is no need to unsubscribe yourself.
-
-### Hardware Events
-
-The core publishes the sensors and inputs that the user connected under **Admin → Hardware → Sensors & Inputs**. A module never touches the GPIO pins itself (it has no root access); it subscribes to these events instead. An event is only published if the matching device is connected.
-
-| Event | Payload | When |
-|-------|---------|------|
-| `hardware.button` | `{"press": "single" \| "double" \| "triple" \| "long", "action": "<configured action>"}` | On every press of the push button. `action` is what the user chose for that press (`"none"` if nothing), and the core has already carried it out. |
-| `hardware.motion` | `{"motion": true \| false, "sensor": "pir" \| "mmwave"}` | Whenever a PIR or mmWave sensor starts or stops seeing someone. `motion` is `true` while *any* presence sensor sees someone; `sensor` is the one that changed. |
-| `hardware.climate` | `{"temperature_c": 21.5, "humidity": 40}` | Every 30 s while a DHT11 is connected. Temperature is always in °C; convert with the `temperature_unit` global setting. The DHT11 regularly misses a read, so the last good reading may be repeated. |
-| `hardware.light` | `{"lux": 250.0}` | Every 30 s while a BH1750 light sensor is connected. |
-| `hardware.fan` | `{"level": 2, "max_level": 4, "cpu_temperature_c": 62.5}` | Every 30 s while a fan is connected. `level` 0 means off; an on/off fan has `max_level` 1, a PWM fan 4. The fan runs by itself (the kernel switches it by CPU temperature). |
-
-Example: show the room temperature on the mirror and dim the module when nobody is there.
+Modules can send each other messages through the mirror's *event bus*, and the mirror sends messages
+about connected hardware the same way. You get the bus in `config`:
 
 ```python
 class RoomModule:
     def __init__(self, config):
-        self.config = config
-        self.temperature = None
-        self.present = True
-        self.changed = asyncio.Event()
         event_bus = config.get("event_bus")
         if event_bus:
-            event_bus.subscribe("hardware.climate", self.on_climate)
-            event_bus.subscribe("hardware.motion", self.on_motion)
+            event_bus.subscribe("hardware.climate", self.on_climate)  # call on_climate for each message
 
     def on_climate(self, data):
         self.temperature = data["temperature_c"]
-        self.changed.set()
-
-    def on_motion(self, data):
-        self.present = data["motion"]
-        self.changed.set()
-
-    async def run_loop(self, broadcast_func):
-        while True:
-            await self.changed.wait()
-            self.changed.clear()
-            html = self.render_template("room.html", temperature=self.temperature, present=self.present)
-            await broadcast_func("mirrordash_room", html)
 ```
 
-> Want to use hardware the list doesn't offer yet? Open an issue for the core: new sensor types are added there (they need a device-tree overlay and an entry in the root helper), and then become available to every module as an event.
+Send your own messages with `event_bus.publish("mymodule:update", {"value": 21})`. Start the names with
+your module's name so they don't clash. Subscribe in `__init__`: when settings change, all subscriptions
+are cleared and every module is created again. A subscriber can be a normal function or an `async def`.
+
+**Hardware messages** (only sent if the user connected the device under **Admin → Hardware → Sensors &
+Inputs**):
+
+| Message | Data | When |
+| :--- | :--- | :--- |
+| `hardware.button` | `{"press": "single" \| "double" \| "triple" \| "long", "action": "…"}` | On every press. `action` is what the user chose for that press (already carried out). |
+| `hardware.motion` | `{"motion": true \| false, "sensor": "pir" \| "mmwave"}` | When someone comes or goes. |
+| `hardware.climate` | `{"temperature_c": 21.5, "humidity": 40}` | Every 30 s. Always °C; convert with the `temperature_unit` global setting. |
+| `hardware.light` | `{"lux": 250.0}` | Every 30 s. |
+| `hardware.fan` | `{"level": 2, "max_level": 4, "cpu_temperature_c": 62.5}` | Every 30 s. `level` 0 is off. |
 
 ---
 
-## 6. Config Schema (Admin UI)
+## 10. Testing
 
-Declare a `config_schema` class attribute to enable the visual form editor in the Admin Dashboard. The dashboard uses it to render inputs, dropdowns, toggles, and validation messages automatically.
+Tests check your module without starting the mirror. Run them in the module's folder:
+
+```bash
+uv run pytest
+```
+
+The mirror's helpers don't exist in a test, so replace them with fakes, as the tutorial's test does:
 
 ```python
-class MyWidgetModule:
-    config_schema = {
-        "title": "My Widget",
-        "description": "Short description shown in the dashboard.",
-        "properties": {
-            "interval": { "type": "integer", "default": 60,        "title": "Refresh Interval", "description": "Seconds between updates." },
-            "api_key":  { "type": "string",  "default": "",        "title": "API Key",          "description": "Leave empty if not required." }
-        }
-    }
+module.render_template = MagicMock(side_effect=lambda name, **context: context)  # see what the template gets
+module.translate = lambda key, default=None: default
+module.fetch_json = AsyncMock(return_value=({"current": {...}}, None))           # a pretend answer
 ```
 
+Test `async` functions with `@pytest.mark.asyncio` and `await` (the module's `pyproject.toml` already
+has `pytest-asyncio`). Test the parts that make decisions: what you pick from the answer, and what you
+show when something fails.
 
-Only declare your module's own settings. The core adds the standard ones to every module's form itself — `enabled`, `position`, `carousel_group`, `carousel_interval`, `max_width`, `max_height`, `z_index` and `opacity` — and ignores them if your schema declares them too (`mirrordash-sdk validate` warns about it).
+Before you share the module, check it:
 
-> [!TIP]
-> The root `title` is the module's **name** in the admin Modules list and settings drawer, so write it as the user would say it: `"Weather"`, not `"Weather Module Settings"`. The root `description` is the one-line text on the module's card; without it, the `description` from `pyproject.toml` is shown.
+```bash
+uvx mirrordash-sdk validate .
+```
 
-### Supported field types
-
-The form generator supports **11 input controls**, each triggered automatically by a specific JSON Schema definition. Rather than documenting them here, see the live reference:
-
-> **[Configuration Form Controls — Design System Explorer](http://localhost:8000/design#forms)**
->
-> Every supported field type is shown side-by-side: the rendered input on the left, the exact `config_schema.json` snippet to copy on the right.
-
-> [!NOTE]
-> Alternatively, place the schema in a `config_schema.json` file next to `plugin.py`. If no schema is defined at all, the module only gets the standard settings.
+It checks the files, the entry point, the settings and the README, and says what to fix.
 
 ---
 
+## 11. Sharing your module
 
-## 7. Styling Guidelines
+A module is shared through GitHub. Every mirror can install it from there, and finds it by itself.
 
-Keep the Ethereal Mirror aesthetic — high contrast on pure black, glanceable at a distance.
-
-### Live Design System Explorer
-
-To make designing widgets as fast and simple as possible, MirrorDash runs an interactive **Design System Explorer** kitchen-sink:
-* **Endpoint**: Served at `http://localhost:8000/design` when the development server is running.
-* **Features**: Live interactive previews of styling tokens, typography scales, layout wrappers, and copy-pasteable CSS/HTML markups matching the Ethereal Design System.
-
-### Colors
-Use the design tokens; they reach inside your module:
-- **Primary data** (time, key values): `var(--color-high-contrast)` (#ffffff)
-- **Labels & secondary text**: `var(--color-standard-gray)` (#999999)
-- **Subtle dividers/hints**: `var(--color-dimmed-charcoal)` (#666666)
-- **Background**: always `transparent`; never set a background color on your widget root
-
-### Building blocks
-Every module gets these classes inside its own part of the screen, so most modules need no CSS at all:
-
-| Class | Use for |
-|-------|---------|
-| `.module-header` | The module's title (`<h2>`), small and uppercase with a line under it |
-| `.display-xl`, `.display-lg` | Large numbers (clock digits, temperatures) |
-| `.headline-md`, `.body-base`, `.body-sm` | Headings and text sizes |
-| `.text-primary`, `.text-secondary`, `.text-dimmed`, `.text-error` | Text colors |
-| `.flex-row` | Items side by side, centered, 8px apart (an icon next to text) |
-| `.flex-row-between` | A full-width row with one item at each end (label and value) |
-| `.flex-column` | Items stacked, 8px apart |
-| `.flex-center` | Centers its content |
-| `.module-message` | A quiet line with an icon: "Couldn't update", "Add an API key", "Nothing today" |
-
-`.module-message` example: `<div class="module-message"><i data-lucide="cloud-off"></i><span>Couldn't update.</span></div>`
-
-#### Example Layouts
-
-1. **Header + Data List (Telemetry Widget)**:
-   ```html
-   <div data-module="sensor-status">
-       <h2 class="module-header">Sensor Panel</h2>
-       <div class="flex-column" style="gap: 4px;">
-           <div class="flex-row-between">
-               <span class="text-secondary">Battery</span>
-               <span class="text-primary">84%</span>
-           </div>
-           <div class="flex-row-between">
-               <span class="text-secondary">WiFi strength</span>
-               <span class="text-primary">-62 dBm</span>
-           </div>
-       </div>
-   </div>
+1. **Name the repository `mirrordash-<name>`**, for example `mirrordash-outside`, and make it public.
+   Mirrors search GitHub for that prefix.
+2. **Write a short description** in the repository's **About** box on GitHub (the gear next to
+   "About"). The mirror's module list shows it.
+3. **Create the repository on GitHub** (empty: no README or license), then save your work and push it
+   from the module's folder (`create-module` already made it a Git repository). The first time you use
+   Git on this computer, tell it who you are:
+   ```bash
+   git config --global user.name "Your Name"
+   git config --global user.email "you@example.com"
    ```
-
-2. **Large Telemetry Display (with aligned Icon)**:
-   ```html
-   <div data-module="ambient-temp">
-       <h2 class="module-header">Living Room</h2>
-       <div class="flex-row">
-           <i data-lucide="thermometer" class="text-primary"></i>
-           <span class="display-lg">21.5°</span>
-       </div>
-   </div>
+   Then:
+   ```bash
+   git add .
+   git commit -m "First version"
+   git remote add origin https://github.com/<you>/mirrordash-outside.git
+   git push -u origin HEAD
    ```
+4. **Make a GitHub Release.** The version in `pyproject.toml` (`version = "0.1.0"`) and the release's tag
+   must match: on GitHub, **Releases → Draft a new release**, create the tag `v0.1.0`, and press
+   **Publish release**.
 
-### Iconography & Vectors
-The system uses **Lucide Icons** as its standard, vector-based line-art iconography.
-- **Icon Search/Catalog:** Developers can search and find all available icons at [lucide.dev/icons](https://lucide.dev/icons).
-- **Usage:** To render an icon inside your template, use the `data-lucide` attribute. The core loader will automatically parse and draw it on the client side:
-  ```html
-  <i data-lucide="sun"></i>
-  ```
-- **Styling:** By default, all icons inherit the parent element's text color (`currentColor`) and use a thin outline (`1.5px` stroke weight). You can color icons using the utility classes like `.text-primary` or `.text-secondary`.
-
-### Responsive Layouts & Localization Safety
-- **Avoid Fixed Widths**: Never use hardcoded pixel widths (`width: 90px`, `width: 110px`, etc.) for lists, columns, or layout elements. Other languages (like Swedish or German) can have words or date formats that are much longer than English, which will cause layouts to break or overlap.
-- **Use Flexible Sizing**: Build layout containers using flexbox or CSS Grid with flexible sizing (`flex: 1`, `min-width: 0`, `max-content`).
-- **Handle Overflow Gracefully**: Apply truncation utilities (`text-overflow: ellipsis`, `overflow: hidden`, `white-space: nowrap`) to text fields to gracefully handle long localized text.
-
-### Shadow DOM Encapsulation & Style Scoping
-
-Every MirrorDash module is rendered inside its own **Shadow DOM** boundary on the kiosk mirror UI. This guarantees layout robustness but has specific implications for styling and scripting:
-
-* **Automatic Isolation**: Any classes, IDs, or element styles defined inside your template's `<style>` block (e.g. `.container`, `p`, `.title`) are scoped strictly to your module and will not leak out to affect other widgets or the core page structure.
-* **Global CSS Variables**: System design tokens and CSS variables (e.g. `var(--color-high-contrast)`, `--color-primary-white`, etc.) cross the shadow boundary and are fully accessible inside your module's styles. Always utilize these properties.
-* **No Cascading Global Styles**: Apart from the design tokens and the building blocks above, styles from the page don't reach your module. Anything else your module needs goes in a `<style>` block in its template.
-* **Scripting Isolation**: Global DOM query functions like `document.querySelector()` or `document.getElementById()` cannot select elements residing inside a module's Shadow DOM, and `document.currentScript` is `null` there. Instead, every `<script>` in your template gets a `root` variable: your module's own shadow root. Query from it, and keep timers on it — it stays the same when you broadcast new HTML, and every instance of your module has its own:
-
-  ```html
-  <div class="clock"></div>
-  <script>
-    const el = root.querySelector('.clock');
-    clearInterval(root._timer);  // the script runs again on every broadcast
-    root._timer = setInterval(() => { el.textContent = new Date().toLocaleTimeString(); }, 1000);
-  </script>
-  ```
-
-### Browser Target & Engine Compatibility
-
-The MirrorDash kiosk display uses **Cog (WPE WebKit)** as its renderer, rather than Chromium/Blink.
-- **Engine**: WPE WebKit.
-- **Compatibility Focus**: Because the production browser is WebKit-based, module developers must ensure their HTML, CSS, and JS do not rely on Chromium-only or bleeding-edge experimental APIs (such as Chromium-specific `chrome.*` APIs, custom scrollbar styling, or non-standard experimental CSS layout engines).
-- **Recommendations**:
-  - Stick to standard HTML5, CSS Grid/Flexbox, and modern standards-compliant ES6+ features.
-  - Test custom stylesheets and script features against WebKit behaviors.
-  - Avoid heavy JavaScript frameworks; utilize vanilla JS to maintain WPE WebKit's high-performance rendering.
-
-## 8. Sharing Your Module
-
-A module is shared through its Git repository on GitHub. There is nothing to build or upload: the mirror
-installs straight from the repository, and uv builds the package while installing.
-
-1. **Push the module to GitHub** (a public repository, e.g. `github.com/you/mirrordash-my-widget`).
-2. **Make a GitHub Release.** Set `version` in `pyproject.toml`, commit and push, then on GitHub:
-   **Releases → Draft a new release**, create the tag `v0.1.0` (the same version) and publish it.
-   Or with the GitHub CLI: `gh release create v0.1.0 --generate-notes`.
-3. **Install it on a mirror**: **Admin → Modules → Install**, with the repository's Git URL.
+Now your module shows up under **Modules** in every mirror's admin page, and anyone can install it with
+one click. They can also paste its address (`git+https://github.com/<you>/mirrordash-outside.git`)
+under **Modules → Install a Module from GitHub**.
 
 > [!IMPORTANT]
-> **A GitHub Release is required.** The mirror installs a module's latest release, not whatever is on
-> its main branch. A repository without a release:
-> * can't be installed from its Git URL (the mirror answers `400 Bad Request`),
-> * isn't shown in the Admin Dashboard's module list,
-> * gets no update notices.
->
-> For a new version, repeat step 2 with a higher version; mirrors then offer the update on the module's card.
+> **Without a GitHub Release, mirrors can't see or install the module.** They always install the newest
+> release, not what's on your main branch.
 
-What the mirror runs is the same as:
-```bash
-uv pip install git+https://github.com/you/mirrordash-my-widget.git@v0.1.0
-```
+**A new version:** raise `version` in `pyproject.toml` (`0.1.0` → `0.1.1`), push, and make a new release
+with the tag `v0.1.1`. Mirrors offer the update on the module's card.
 
-> [!NOTE]
-> **Non-Python files (templates, schemas, images) are included automatically**: the `packages` key in the
-> generated `pyproject.toml` takes the whole package directory along.
+**The README** is the user's manual. It should say what the module shows, step by step how to get any
+API key it needs and where to enter it, and show a `screenshot.png` (GitHub shows it on the module's
+page).
 
 ---
 
-## 9. Documentation Guidelines (`README.md`)
+## 12. Troubleshooting
 
-To provide a smooth experience for users browsing the MirrorDash module store, all module repositories/directories must include a properly written `README.md` at their root. 
+**Where are the logs?** In the terminal where the mirror runs, and in the admin page under **Logs**.
+Errors from your module start with its name, for example `mirrordash.modules.mirrordash_outside`.
 
-### Mandatory Fields
-
-1. **Description**: Clear explanation of what the module displays and what dependencies it requires.
-2. **API Credentials & Keys**: If your module fetches data from a third-party service requiring registration or subscription:
-   - Provide explicit, step-by-step instructions on **where and how** to retrieve the API keys (e.g., website registration links, free vs. paid tier limits).
-   - Document how to input them in the visual Configuration dashboard.
-3. **Screenshot**:
-   - Place a high-quality preview image named `screenshot.png` at the root of the module package directory.
-   - Embed this screenshot using `![Screenshot](screenshot.png)` at the bottom of your `README.md`.
-   - The MirrorDash module store parses and reads this image dynamically to showcase a visual preview to users before they download.
-
----
-
-## 10. Installing on the Device
-
-### Via the Admin Dashboard
-Use the **Modules** tab in the Admin Dashboard: find and install new modules at the bottom, and update installed ones from their cards. Both handle the read-only OverlayFS remount and server restart automatically.
-
-### Via API (curl)
-```bash
-# Install from a Git URL (the repository needs a GitHub Release)
-curl -X POST http://localhost:8000/admin/install \
-     -H "Content-Type: application/json" \
-     -H "X-API-Key: <your-password>" \
-     -d '{"package_name": "git+https://github.com/you/mirrordash-my-widget.git@v0.1.0"}'
-
-# Install from local path (development)
-curl -X POST http://localhost:8000/admin/install \
-     -H "Content-Type: application/json" \
-     -H "X-API-Key: <your-password>" \
-     -d '{"package_name": "/path/to/modules/mirrordash-my-widget"}'
-```
-
-### Enabling in config.json
-After installing, add your module to `config.json` to assign its screen position:
-
-```json
-{
-  "modules": {
-    "mirrordash-my-widget": {
-      "module": "mirrordash-my-widget",
-      "enabled": true,
-      "position": "top_left",
-      "interval": 30
-    }
-  }
-}
-```
-
-The key is the instance id; `module` names the installed module (it defaults to the key, and is needed when you add a second instance like `mirrordash-my-widget-2`). Or use **Admin Dashboard → Modules** to add and configure it visually.
-
-#### Carousel Configuration
-If you have multiple modules in the same region, they stack vertically by default. To make specific modules cycle on a timer instead, you can group them using the `carousel_group` property:
-
-```json
-{
-  "modules": {
-    "mirrordash-calendar": {
-      "position": "middle_left",
-      "enabled": true,
-      "carousel_group": "info-cycle",
-      "carousel_interval": 20
-    },
-    "mirrordash-weather": {
-      "position": "middle_left",
-      "enabled": true,
-      "carousel_group": "info-cycle",
-      "carousel_interval": 20
-    }
-  }
-}
-```
-
-*   **`carousel_group`** (string, optional): Group name. Modules in the same region sharing this name cycle sequentially.
-*   **`carousel_interval`** (integer, optional): Switch interval in seconds (defaults to `15`).
-
+| Problem | Why | What to do |
+| :--- | :--- | :--- |
+| The module doesn't show at all. | It isn't added to the mirror, or it's turned off. | In the module's folder run `uvx mirrordash-sdk dev-setup -e`. Check **Admin → Modules** that it's turned on. |
+| The panel says "Loading …" or shows old content, and `Failed to render template` is in the log. | A mistake in `widget.html`, for example a `{% if %}` without `{% endif %}`. | The log line says which line; fix it and save. |
+| The panel says "Loading …" or shows old content, and another error is in the log. | `plugin.py` crashed, for example on a key the answer doesn't have. | Read the error in the log; it names the file and line. The mirror tries again by itself. |
+| A change doesn't show. | The mirror runs without watching for changes. | Start it with `uvx mirrordash-sdk start` from the module's folder. |
+| An icon is missing. | The icon name doesn't exist. | Check the name at [lucide.dev/icons](https://lucide.dev/icons). |
+| `fetch_json` gives `"rejected"`. | The service doesn't accept the API key. | Check the key, and which header the service wants it in. |
+| `fetch_json` gives `"http 429"`. | Too many requests. | Raise `interval`. |
+| The mirror shows "set an admin password". | The local mirror has no admin password. | Run `uvx mirrordash-sdk dev-setup` once; it sets `mirrordash`. |
+| `uv run pytest` can't find your module. | You're not in the module's folder. | `cd` to the folder with `pyproject.toml` and run it again. |
 
 ---
 
-## Appendix: Architecture Overview
+## 13. Reference: what the mirror gives your module
 
-MirrorDash uses a decentralised, entry-point based plugin architecture. The core backend discovers installed modules at runtime by scanning the Python environment for entry points registered under the `mirrordash.modules` group.
+**In `config`** (the argument to `__init__`):
 
-```mermaid
-graph TD
-    A[Core Application] -->|Scans entry points| B(mirrordash.modules)
-    B --> C[mirrordash_clock]
-    B --> D[mirrordash_my_widget]
-    C -->|Registers| E[ClockModule]
-    D -->|Registers| F[MyWidgetModule]
-    E -->|Broadcasts HTML| G[WebSocket Manager]
-    F -->|Broadcasts HTML| G
-    G -->|Updates UI| H[Browser Display]
-```
+| Key | What it is |
+| :--- | :--- |
+| your settings | Everything from `config_schema.json`, with the user's values. |
+| `"globals"` | The mirror's global settings (language, time zone, units, location). See [part 6](#6-settings). |
+| `"data_dir"` | A folder for things to keep. See [part 8](#8-saving-files). |
+| `"cache_dir"` | A folder for things that may be thrown away. |
+| `"translations"` | The module's texts in the mirror's language. Usually you use `self.translate` instead. |
+| `"event_bus"` | Messages between modules, and from hardware. See [part 9](#9-hardware-and-other-modules). |
 
-### Package naming: hyphens vs. underscores
+**On `self`** (added after `__init__`, so use them from `run_loop`):
 
-Package names use hyphens (`mirrordash-my-widget`), while Python source directories and entry points use underscores (`mirrordash_my_widget`). The core loader and Admin Dashboard automatically normalize these mismatches, so both forms work interchangeably in `config.json`. That said, keeping your folder name and entry point key consistent (both underscores) avoids any ambiguity.
+| Helper | What it does |
+| :--- | :--- |
+| `self.render_template("widget.html", **values)` | Fills in a template from `templates/` and gives back the HTML. The template also gets `translations` and `show_header`. |
+| `self.translate("key", "default")` | A text from `translations/`. |
+| `await self.fetch_json(url, headers=…, params=…, timeout=10)` | Fetches JSON; gives back `(data, error)`. See [part 5](#5-fetching-data). |
 
-### Entry point registration (`pyproject.toml`)
+**`await broadcast_func(self.name, html)`** puts `html` in your module's place on the screen.
 
-```toml
-[project.entry-points."mirrordash.modules"]
-mirrordash_my_widget = "mirrordash_my_widget.plugin:MyWidgetModule"
-```
+`fetch_json` and the component library need MirrorDash 0.5 or newer; `mirrordash-sdk dev-setup` installs
+the right version.
 
-The `mirrordash-sdk` scaffolder adds this automatically.
+---
+
+## Words used in this guide
+
+| Word | Meaning |
+| :--- | :--- |
+| **API** | A web address that answers with data (often JSON) instead of a web page. |
+| **API key** | A password a service gives you, so it knows who is asking. |
+| **async / await** | `async def` makes a function that can wait without blocking other modules; `await` is where it waits. |
+| **broadcast** | Sending your module's HTML to the screen. |
+| **component library** | `http://localhost:8000/design`: the mirror's building blocks for the look, with code to copy. |
+| **entry point** | A line in `pyproject.toml` that tells the mirror which class is your module. `create-module` writes it. |
+| **event bus** | The mirror's way of passing messages between modules (and from hardware). |
+| **header** | Extra information sent with a web request, for example an API key. |
+| **Jinja** | The `{{ ... }}` and `{% ... %}` in templates: they fill in values and repeat or hide parts. |
+| **JSON** | A text format for data: `{"temperature": 21}`. Python reads it as a dictionary. |
+| **release** | A version of your module on GitHub that mirrors can install. |
+| **shadow DOM** | Your module's own little box on the page. Styles from outside don't get in, yours don't get out. |
+| **template** | The HTML file (`widget.html`) that shows your data. |

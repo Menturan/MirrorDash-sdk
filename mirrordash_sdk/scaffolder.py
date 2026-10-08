@@ -86,18 +86,14 @@ def create_module(name: str, description: str, author: str, icon: str = None, dr
         destination.write_text(text, encoding="utf-8")
 
     if dry_run:
-        print("\n[DRY RUN] Would run: git init, git add ., git commit -m \"feat: initial commit\"")
+        print("\n[DRY RUN] Would run: git init")
         print("\nDry run completed. No files were written.")
         return target_dir
 
+    # Only a repository, no commit: a first commit needs the user's name set in git (the guide's part 11)
     if shutil.which("git"):
-        try:
-            for cmd in (["git", "init"], ["git", "add", "."],
-                        ["git", "commit", "--no-gpg-sign", "-m", "feat: initial commit"]):
-                subprocess.run(cmd, cwd=target_dir, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            print("Git repository initialized with initial commit.")
-        except Exception as e:
-            print(f"Warning: Failed to initialize Git repository: {e}")
+        if subprocess.run(["git", "init", "--quiet"], cwd=target_dir).returncode == 0:
+            print("Git repository initialized.")
     else:
         print("Warning: 'git' command not found. Skipping Git repository initialization.")
 

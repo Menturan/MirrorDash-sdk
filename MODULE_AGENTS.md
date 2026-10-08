@@ -72,7 +72,7 @@ def __init__(self, config):
 All module designs must adhere to the MirrorDash **Ethereal Design System** to preserve visual unity on a dark ambient mirror display:
 
 - **Transparent Backgrounds**: Widgets float on a pure black background. Never define a custom background color on the module wrapper.
-- **Building blocks first**: lay out with the classes every module gets (no CSS needed): `.module-header`, `.display-xl`/`.display-lg` for big numbers, `.flex-row`, `.flex-row-between` (label–value rows), `.flex-column`, `.text-primary`/`.text-secondary`, `.module-message` for errors and empty states. See `http://localhost:8000/design`.
+- **Component library first**: start every layout from `http://localhost:8000/design` and copy its markup; everything there works in a module except the parts marked "The mirror's own UI". The usual ones: `.module-header`, `.display-xl`/`.display-lg` (big numbers), `.data-list` (label–value rows), `.stats-grid`, `.forecast-grid`, `.agenda-list`, `.gauge-bar`, `.alert-callout`, `.module-message` (errors and empty states), `.flex-*`, `.text-*`. No CSS needed for these.
 - **HUD Contrast**: For your own CSS, use the design tokens:
   - Primary text/numbers: `var(--color-high-contrast)` (#ffffff)
   - Secondary metadata/labels: `var(--color-standard-gray)` (#999999)
@@ -108,6 +108,6 @@ Before submitting a pull request or code change:
 2. Ensure you have provided a `README.md` at the module root containing:
    - Clear description.
    - Step-by-step setup instructions for API keys/tokens (if any).
-   - A `screenshot.png` at the package root, referenced in the markdown.
+   - A `screenshot.png` at the repository root, referenced in the README (GitHub shows it; the mirror shows the repository's "About" text).
 3. Run the test suite: `uv run pytest`, and `uvx mirrordash-sdk validate .`.
 4. Share through GitHub only: push, then make a GitHub Release whose tag is `v` + the `pyproject.toml` version. Don't publish modules to PyPI; mirrors install from the Git URL and need the release.

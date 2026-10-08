@@ -221,7 +221,7 @@ def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
     screenshot_file = path / "screenshot.png"
     if not screenshot_file.exists():
         print("  [!] Warning: screenshot.png not found in module directory.")
-        print("      Every MirrorDash module should have a screenshot.png preview at its root for the module store.")
+        print("      Add a picture of the module named screenshot.png; your README shows it on GitHub.")
         has_warnings = True
     else:
         print("  [✓] screenshot.png exists")
