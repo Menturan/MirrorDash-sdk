@@ -35,6 +35,7 @@ def test_dry_run_changes_nothing(module):
     result = release(module, "1.0.0", "--dry-run")
     assert result.exit_code == 0, result.output
     assert "[dry run] set version 0.1.0 -> 1.0.0" in result.output
+    assert "nothing was changed" in result.output and "is pushed" not in result.output
     assert 'version = "0.1.0"' in (module / "pyproject.toml").read_text()
     assert git(module, "tag") == ""
 

@@ -92,7 +92,9 @@ def release_module(path: Path, version: str | None, dry_run: bool = False) -> No
     run("git", "push", "origin", tag, change=True)
 
     repo_url = re.sub(r"\.git$", "", remote.replace("git@github.com:", "https://github.com/"))
-    if shutil.which("gh"):
+    if dry_run:
+        click.echo(f"\nDry run: nothing was changed. Without --dry-run this releases {tag}.")
+    elif shutil.which("gh"):
         run("gh", "release", "create", tag, "--title", tag, "--generate-notes", change=True)
         click.echo(f"\n{tag} is released. Mirrors offer it as an update on the module's card.")
     else:
