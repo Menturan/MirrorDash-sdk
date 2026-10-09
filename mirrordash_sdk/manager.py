@@ -15,7 +15,10 @@ DEV_PASSWORD = "mirrordash"
 SET_DEV_PASSWORD = """\
 import secrets, sys
 from mirrordash_core.config import load_config, save_config
-from mirrordash_core.api.admin_shared import hash_password
+try:
+    from mirrordash_core.admin import hash_password
+except ImportError:  # MirrorDash before the vertical slices (0.6.x)
+    from mirrordash_core.api.admin_shared import hash_password
 config = load_config()
 if "admin_auth" not in config:
     salt = secrets.token_hex(16)
