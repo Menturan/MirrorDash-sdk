@@ -40,7 +40,7 @@ Push it to GitHub once, then run `uvx mirrordash-sdk release 1.0.0` for every ve
 
 ## Learn more
 
-- **[MODULE_GUIDE.md](https://github.com/Menturan/MirrorDash-sdk/blob/master/MODULE_GUIDE.md)**: a step-by-step tutorial, then everything else: the component library, `fetch_json`, settings, translations, testing, sharing, troubleshooting.
+- **[MODULE_GUIDE.md](https://github.com/Menturan/MirrorDash-sdk/blob/master/MODULE_GUIDE.md)**: a step-by-step tutorial, then everything else: the component library, `fetch_json`/`fetch`, settings, translations, testing, sharing, troubleshooting.
 - **[MODULE_AGENTS.md](https://github.com/Menturan/MirrorDash-sdk/blob/master/MODULE_AGENTS.md)**: the same rules, short, for AI coding agents.
 - `http://localhost:8000/design` while your local mirror runs: the component library, every building block with code to copy.
 

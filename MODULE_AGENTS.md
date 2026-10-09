@@ -26,7 +26,7 @@ uvx mirrordash-sdk start
 ## 2. Coding Rules for Modules
 
 ### Async & Non-Blocking Loops
-0. **Fetch with `self.fetch_json`**: never write your own HTTP code for JSON APIs. `data, error = await self.fetch_json(url, headers=..., params=...)` has a timeout, doesn't block, and on a failure returns the last good answer with `error` set (`rejected`, `offline`, `http <code>`, `invalid`). Put API keys in `headers`, never in the URL. Show `data` when there is any and a `.module-message` when `error` is set. In tests: `module.fetch_json = AsyncMock(return_value=(data, None))`.
+0. **Fetch with `self.fetch_json` / `self.fetch`**: never write your own HTTP code (`requests`, `httpx`, `urllib`, `aiohttp`); `validate` warns about it. `self.fetch_json` for JSON answers, `self.fetch` (bytes) for everything else (RSS, ICS, XML). Both take `headers=`, `params=`, `method=`, `json=`, `data=`, `timeout=` and return `(data, error)`: they have a timeout, don't block, pause while the screen is off, and on a failure return the last good answer with `error` set (`rejected`, `offline`, `http <code>`, `invalid`). Put API keys in `headers` or the body, never in the URL. Show `data` when there is any and a `.module-message` when `error` is set. In tests: `module.fetch_json = AsyncMock(return_value=(data, None))`.
 1. **Never block the event loop**: The module's `run_loop` is an async task. Do not use blocking operations (like `requests`, `urllib.request.urlopen`, or `time.sleep()`).
 2. **Wrap Synchronous I/O**: Use `await asyncio.to_thread(sync_func, ...)` to offload synchronous network or disk reads.
 3. **Use Async Sleeps**: Sleep only with `await asyncio.sleep(self.interval)`.

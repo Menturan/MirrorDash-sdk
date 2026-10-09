@@ -442,9 +442,17 @@ inside your module). The script runs again each time you broadcast new HTML, so 
 
 ## 5. Fetching data
 
-Use `self.fetch_json` for any web *API* that answers in JSON. It has a timeout, doesn't block the
-mirror, and remembers the last good answer, so the module keeps showing data when the internet is gone,
-even after a restart.
+Fetch everything through the mirror's two helpers, never with your own HTTP client (`requests`, `httpx`,
+`urllib`, …). They have a timeout, don't block the mirror, pause while the screen is off, and remember the
+last good answer, so the module keeps showing data when the internet is gone, even after a restart.
+`mirrordash-sdk validate` warns about an own HTTP client.
+
+What the answer is decides which one:
+
+| The answer is | Use | `data` is |
+| :--- | :--- | :--- |
+| JSON | `await self.fetch_json(url, ...)` | the parsed JSON (dict or list) |
+| Anything else: RSS, ICS, XML, text | `await self.fetch(url, ...)` | bytes (`data.decode()` for text) |
 
 ```python
 data, error = await self.fetch_json(
@@ -455,6 +463,26 @@ data, error = await self.fetch_json(
 )
 ```
 
+Both take the same arguments, with the same names as in `requests`:
+
+| Argument | What it does |
+| :--- | :--- |
+| `headers={...}` | Extra headers, such as an API key. |
+| `params={...}` | Added to the URL: `params={"q": "Stockholm"}` becomes `?q=Stockholm`. |
+| `method="POST"` | Any HTTP method; `"GET"` if left out. |
+| `json={...}` | A JSON body (sets `Content-Type: application/json`). |
+| `data={...}` | A form body; or `data=b"..."` sent as it is. Not together with `json`. |
+| `timeout=10` | Seconds before it gives up with `"offline"`. |
+
+```python
+# A GraphQL API (they read with POST)
+data, error = await self.fetch_json("https://api.example.com/graphql", method="POST",
+                                    json={"query": "{ departures(stop: 9001) { time line } }"})
+# An RSS feed
+data, error = await self.fetch("https://example.com/news.xml")
+items = parse_feed(data) if data else []
+```
+
 It always gives back two things: `data` (the answer) and `error` (what went wrong, or `None`).
 
 | `error` | Meaning | `data` |
@@ -463,16 +491,18 @@ It always gives back two things: `data` (the answer) and `error` (what went wron
 | `"rejected"` | The service said no (401/403): usually a wrong or missing API key. | The last good answer, or `None`. |
 | `"offline"` | No answer: no internet, the service is down, or it took too long. | The last good answer, or `None`. |
 | `"http <code>"` | Another error from the service, for example `"http 429"`: too many requests. | The last good answer, or `None`. |
-| `"invalid"` | The answer wasn't JSON. | The last good answer, or `None`. |
+| `"invalid"` | `fetch_json` only: the answer wasn't JSON. | The last good answer, or `None`. |
 
 - **Show what you have, and say what's wrong:** show `data` when there is any, and a `module-message` when
   `error` is set, like the tutorial does.
-- **API keys go in `headers`, never in the URL.** The mirror never writes headers to its log, so the key
-  stays secret. Most APIs say in their documentation which header they want (`Authorization`,
+- **API keys go in `headers` (or the body), never in the URL.** The mirror never writes headers or the body
+  to its log, so the key stays secret. Most APIs say in their documentation which header they want (`Authorization`,
   `X-Api-Key`, …). Let the user enter the key as a setting (see [part 6](#6-settings)).
 - **No retries:** a failed fetch is simply tried again at the next `interval`. Keep the interval within
   what the service allows; free APIs often allow a request every few minutes.
-- **It waits while the screen is off.** A sleeping mirror calls no APIs: `fetch_json` returns when the
+- **The last good answer is per request:** the same URL with another method or body (two GraphQL queries)
+  has its own.
+- **It waits while the screen is off.** A sleeping mirror calls no APIs: `fetch`/`fetch_json` returns when the
   screen is on again, so a fetch that fell due at night happens once, on waking. A module that must keep
   fetching in the dark (a data logger) sets `keep_running = True` on its class.
 - **Need an API key to start with?** `uvx mirrordash-sdk create-module mirrordash-x --template api`

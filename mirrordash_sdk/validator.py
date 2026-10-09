@@ -1,3 +1,4 @@
+import ast
 import json
 import sys
 from pathlib import Path
@@ -202,6 +203,35 @@ def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
                 except Exception as te:
                     print(f"  [✗] translations/en.json is invalid JSON: {te}")
                     has_errors = True
+
+        # An own HTTP client misses what self.fetch gives: sleeping while the screen is off, the last answer offline
+        # ponytail: a plain import list; an import through a helper package or importlib slips past
+        http_clients = ("requests", "httpx", "aiohttp", "urllib.request", "urllib3", "http.client", "pycurl", "websockets")
+        own_fetching = []
+        for py_file in sorted(package_dir.rglob("*.py")):
+            if "tests" in py_file.relative_to(package_dir).parts:
+                continue
+            try:
+                tree = ast.parse(py_file.read_text(encoding="utf-8"))
+            except (SyntaxError, UnicodeDecodeError):
+                continue
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    names = [a.name for a in node.names]
+                elif isinstance(node, ast.ImportFrom) and node.module:
+                    names = [node.module] + [f"{node.module}.{a.name}" for a in node.names]
+                else:
+                    continue
+                hit = next((n for n in names if any(n == c or n.startswith(c + ".") for c in http_clients)), None)
+                if hit:
+                    own_fetching.append(f"{py_file.relative_to(path)}:{node.lineno} ({hit})")
+        if own_fetching:
+            print(f"  [!] Warning: the module fetches data with its own HTTP client: {', '.join(own_fetching)}")
+            print("      Use self.fetch_json / self.fetch instead. Your own client doesn't pause while the screen is off")
+            print("      (it keeps calling the API at night) and has no offline fallback.")
+            has_warnings = True
+        else:
+            print("  [✓] Fetches data through self.fetch / self.fetch_json")
 
     # 3. Check README.md and screenshot.png
     readme_file = path / "README.md"

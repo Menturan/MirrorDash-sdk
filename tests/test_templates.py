@@ -78,3 +78,15 @@ def test_validate_warns_about_a_key_shown_in_plain_text(tmp_path, monkeypatch):
 
     result = runner.invoke(main, ["validate", "mirrordash-demo"])
     assert "look secret but show in plain text: ['api_key']" in result.output
+
+
+def test_validate_warns_about_an_own_http_client_but_passes(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(main, ["create-module", "mirrordash-demo"])
+    plugin = Path("mirrordash-demo/mirrordash_demo/plugin.py")
+    plugin.write_text("# requests would be wrong here\nimport httpx\n" + plugin.read_text())
+
+    result = runner.invoke(main, ["validate", "mirrordash-demo"])
+    assert "its own HTTP client: mirrordash_demo/plugin.py:2 (httpx)" in result.output
+    assert result.exit_code == 0 and "FAIL" not in result.output
