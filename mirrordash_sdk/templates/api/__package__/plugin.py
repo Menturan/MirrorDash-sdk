@@ -59,8 +59,9 @@ class $class_name:
 
         # The key goes in a header, so it never ends up in a log or in a cached URL.
         # On a failure, data is the last good answer (also after a restart) and error says what went wrong.
+        # max_age: an answer younger than the interval is reused, so saving a setting or a restart makes no call.
         data, error = await self.fetch_json(URL, headers={"Authorization": f"Bearer {self.api_key}"},
-                                            params={"q": self.location})
+                                            params={"q": self.location}, max_age=self.interval)
         if not error:
             self.updated = datetime.now().strftime("%H:%M")
             return self.render_template("widget.html", data=parse(data), message=None)

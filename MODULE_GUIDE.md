@@ -473,6 +473,7 @@ Both take the same arguments, with the same names as in `requests`:
 | `json={...}` | A JSON body (sets `Content-Type: application/json`). |
 | `data={...}` | A form body; or `data=b"..."` sent as it is. Not together with `json`. |
 | `timeout=10` | Seconds before it gives up with `"offline"`. |
+| `max_age=600` | Reuse a saved answer younger than this many seconds, without a call. |
 
 ```python
 # A GraphQL API (they read with POST)
@@ -500,6 +501,27 @@ It always gives back two things: `data` (the answer) and `error` (what went wron
   `X-Api-Key`, …). Let the user enter the key as a setting (see [part 6](#6-settings)).
 - **No retries:** a failed fetch is simply tried again at the next `interval`. Keep the interval within
   what the service allows; free APIs often allow a request every few minutes.
+- **Pass `max_age=self.interval`.** The mirror restarts every module when a setting is saved, and after an
+  update or a reboot; without `max_age` each restart calls the API again. With it, an answer younger than
+  the interval is reused (`error` is `None`), so the module keeps to its schedule. After a restart the next
+  call can come up to two intervals after the last one, once.
+- **At a time of day** (a lunch menu at 10:30): sleep until the next 10:30, and let `max_age` be the time
+  since the last one, so an answer from after it is reused and an older one is fetched:
+  ```python
+  def since_last(hour: int, minute: int) -> float:
+      now = datetime.now()
+      last = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+      return (now - (last if last <= now else last - timedelta(days=1))).total_seconds()
+
+  async def run_loop(self, broadcast_func):
+      while True:
+          data, error = await self.fetch_json(URL, max_age=since_last(10, 30))
+          await broadcast_func(self.name, self.render_template("widget.html", data=data))
+          await asyncio.sleep(24 * 3600 - since_last(10, 30))  # until the next 10:30
+  ```
+- **The same HTML isn't sent twice:** the screen only redraws a module when its HTML changes. So don't
+  put the time of rendering in it ("updated 10:42"): then it changes every time, and the module redraws
+  (restarting its icons and scrolling) on every round. The time of the data is fine.
 - **The last good answer is per request:** the same URL with another method or body (two GraphQL queries)
   has its own.
 - **It waits while the screen is off.** A sleeping mirror calls no APIs: `fetch`/`fetch_json` returns when the
