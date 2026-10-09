@@ -472,6 +472,9 @@ It always gives back two things: `data` (the answer) and `error` (what went wron
   `X-Api-Key`, …). Let the user enter the key as a setting (see [part 6](#6-settings)).
 - **No retries:** a failed fetch is simply tried again at the next `interval`. Keep the interval within
   what the service allows; free APIs often allow a request every few minutes.
+- **It waits while the screen is off.** A sleeping mirror calls no APIs: `fetch_json` returns when the
+  screen is on again, so a fetch that fell due at night happens once, on waking. A module that must keep
+  fetching in the dark (a data logger) sets `keep_running = True` on its class.
 - **Need an API key to start with?** `uvx mirrordash-sdk create-module mirrordash-x --template api`
   gives you a module that already has an API key setting, example data until a key is entered, and
   messages for every error.
