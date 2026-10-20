@@ -378,6 +378,36 @@ for the screen (`await broadcast_func(...)`) or for time (`await asyncio.sleep(.
 - When the mirror stops, `run_loop` gets an `asyncio.CancelledError`. Let it through with
   `except asyncio.CancelledError: raise` (`mirrordash-sdk validate` checks for it).
 
+**While a video plays:** a video beside the modules stays smooth only while the rest of the screen
+stands still, because every redraw of the page costs the Raspberry Pi a video frame. So while a module
+plays a video, the mirror updates once a minute, on the minute:
+
+- Your module's new HTML (`broadcast_func`) waits for the next whole minute. You don't need to do
+  anything.
+- CSS animations and transitions in your module stand still, and carousels switch on the minute
+  without their fade.
+- Your own scripts are yours to calm: while your module's host has `data-video-is-playing`, change
+  nothing on your card more often than once a minute, on the minute. The `mirrordash:video_is_playing`
+  event (with `detail.playing`) says when it starts and stops. The clock module hides its seconds:
+
+  ```html
+  <style>:host([data-video-is-playing]) .seconds { display: none; }</style>
+  <script>
+      const playing = () => root.host.hasAttribute('data-video-is-playing');
+      function tick() {
+          clearTimeout(root._timer);
+          draw();
+          root._timer = setTimeout(tick, playing() ? 60000 - Date.now() % 60000 : 1000);
+      }
+      tick();
+      removeEventListener('mirrordash:video_is_playing', root._onVideo);
+      addEventListener('mirrordash:video_is_playing', root._onVideo = tick);
+  </script>
+  ```
+
+- A module that plays a video itself wraps the playback in `async with self.video_is_playing():`. Its
+  own updates still go out at once; the signal ends when the block does, also if the module stops.
+
 ---
 
 ## 4. Design: the component library
@@ -776,6 +806,7 @@ Errors from your module start with its name, for example `mirrordash.modules.mir
 | `self.render_template("widget.html", **values)` | Fills in a template from `templates/` and gives back the HTML. The template also gets `translations` and `show_header`. |
 | `self.translate("key", "default")` | A text from `translations/`. |
 | `await self.fetch_json(url, headers=…, params=…, timeout=10)` | Fetches JSON; gives back `(data, error)`. See [part 5](#5-fetching-data). |
+| `async with self.video_is_playing():` | Around playing a video: meanwhile the other modules update once a minute. See [part 3](#3-how-a-module-works). |
 
 **`await broadcast_func(self.name, html)`** puts `html` in your module's place on the screen.
 
