@@ -405,29 +405,34 @@ plays a video, the mirror updates once a minute, on the minute:
   </script>
   ```
 
-- A module that plays a video with `self.play_video` (below) gets all this for itself, and its own
+- A module that plays a video in `self.video_window` (below) gets all this for itself, and its own
   updates still go out at once.
 
-**Playing a video:** put an element with `data-video-window` on your card where the video goes, sized
-with CSS, and call `await self.play_video(url)`. The mirror plays it there with the Raspberry Pi's own
-decoder, in a window of its own over the card, and returns when the video ends:
+**Playing a video:** the mirror gives your video its place; your module brings the player. Put an element
+with `data-video-window` on your card where the video goes, sized with CSS, and run your player inside
+`self.video_window()`:
 
 ```html
 <div data-video-window style="width: 100%; aspect-ratio: 16 / 9; background: #000"></div>
 ```
 
 ```python
-code = await self.play_video(url, hz=50)  # 0 at the end, 1 on an error (in the log)
+async with self.video_window(hz=50) as window:
+    player = await asyncio.create_subprocess_exec("/usr/bin/python3", "-I", PLAYER, url, window.app_id)
+    await player.wait()
 ```
 
-- `fullscreen=True` fills the screen instead (no element needed).
-- `hz=50` runs the screen at 50 Hz while it plays, if it can: European TV is 25 or 50 frames a second
-  and judders at 60 Hz.
-- To stop it, cancel the task it runs in (`task = asyncio.create_task(self.play_video(url))`, then
-  `task.cancel()`). The mirror also stops it when your module stops.
-- One video plays at a time; a second waits for the first. H.264 plays smoothly up to 1080p (HLS, MP4,
-  plain streams); streams with DRM can't play. Subtitles aren't shown.
-- The window's place is taken when the video starts.
+- Inside the block, a window with the app id `window.app_id` lands over the element (`window.rect` is
+  where, in screen pixels), the screen runs at 50 Hz if it can (European TV is 25 or 50 frames a second
+  and judders at 60 Hz), and the other modules update once a minute. All of it ends with the block.
+- `fullscreen=True`: no element needed; the player opens its window fullscreen (`window.fullscreen`).
+- The mirror has GStreamer with the Raspberry Pi's H.264 decoder and its Python bindings for the
+  system's Python (`/usr/bin/python3`; your module's own Python doesn't have them), so a player is a
+  small script your module runs: `GLib.set_prgname(window.app_id)` gives its window the app id, and
+  `playbin3` with `waylandsink` plays the stream. Stop it (`player.terminate()`) when your module stops.
+- One video window at a time; a second waits for the first. Streams with DRM can't play. In an HLS
+  stream, remove the subtitle renditions from the playlist: with them, the first frame waits some 18 s.
+- The window's place is taken when the block starts.
 
 ---
 
@@ -827,7 +832,7 @@ Errors from your module start with its name, for example `mirrordash.modules.mir
 | `self.render_template("widget.html", **values)` | Fills in a template from `templates/` and gives back the HTML. The template also gets `translations` and `show_header`. |
 | `self.translate("key", "default")` | A text from `translations/`. |
 | `await self.fetch_json(url, headers=…, params=…, timeout=10)` | Fetches JSON; gives back `(data, error)`. See [part 5](#5-fetching-data). |
-| `await self.play_video(url, fullscreen=False, hz=None)` | Plays a video over the card's `data-video-window` element (or fullscreen) until it ends. See [part 3](#3-how-a-module-works). |
+| `async with self.video_window(fullscreen=False, hz=None) as window:` | Places your player's window (app id `window.app_id`) over the card's `data-video-window` element, or fullscreen. See [part 3](#3-how-a-module-works). |
 | `async with self.video_is_playing():` | For a module that shows moving pictures some other way: meanwhile the other modules update once a minute. |
 
 **`await broadcast_func(self.name, html)`** puts `html` in your module's place on the screen.
