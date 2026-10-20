@@ -405,8 +405,29 @@ plays a video, the mirror updates once a minute, on the minute:
   </script>
   ```
 
-- A module that plays a video itself wraps the playback in `async with self.video_is_playing():`. Its
-  own updates still go out at once; the signal ends when the block does, also if the module stops.
+- A module that plays a video with `self.play_video` (below) gets all this for itself, and its own
+  updates still go out at once.
+
+**Playing a video:** put an element with `data-video-window` on your card where the video goes, sized
+with CSS, and call `await self.play_video(url)`. The mirror plays it there with the Raspberry Pi's own
+decoder, in a window of its own over the card, and returns when the video ends:
+
+```html
+<div data-video-window style="width: 100%; aspect-ratio: 16 / 9; background: #000"></div>
+```
+
+```python
+code = await self.play_video(url, hz=50)  # 0 at the end, 1 on an error (in the log)
+```
+
+- `fullscreen=True` fills the screen instead (no element needed).
+- `hz=50` runs the screen at 50 Hz while it plays, if it can: European TV is 25 or 50 frames a second
+  and judders at 60 Hz.
+- To stop it, cancel the task it runs in (`task = asyncio.create_task(self.play_video(url))`, then
+  `task.cancel()`). The mirror also stops it when your module stops.
+- One video plays at a time; a second waits for the first. H.264 plays smoothly up to 1080p (HLS, MP4,
+  plain streams); streams with DRM can't play. Subtitles aren't shown.
+- The window's place is taken when the video starts.
 
 ---
 
@@ -806,7 +827,8 @@ Errors from your module start with its name, for example `mirrordash.modules.mir
 | `self.render_template("widget.html", **values)` | Fills in a template from `templates/` and gives back the HTML. The template also gets `translations` and `show_header`. |
 | `self.translate("key", "default")` | A text from `translations/`. |
 | `await self.fetch_json(url, headers=…, params=…, timeout=10)` | Fetches JSON; gives back `(data, error)`. See [part 5](#5-fetching-data). |
-| `async with self.video_is_playing():` | Around playing a video: meanwhile the other modules update once a minute. See [part 3](#3-how-a-module-works). |
+| `await self.play_video(url, fullscreen=False, hz=None)` | Plays a video over the card's `data-video-window` element (or fullscreen) until it ends. See [part 3](#3-how-a-module-works). |
+| `async with self.video_is_playing():` | For a module that shows moving pictures some other way: meanwhile the other modules update once a minute. |
 
 **`await broadcast_func(self.name, html)`** puts `html` in your module's place on the screen.
 
