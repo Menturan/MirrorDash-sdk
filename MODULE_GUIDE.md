@@ -358,7 +358,7 @@ mirrordash-outside/                  the module's folder (and later its GitHub r
 1. The mirror finds your module through the *entry point* in `pyproject.toml` (`create-module` writes it
    for you).
 2. It creates your class: `OutsideModule(config)`. `config` holds the module's settings.
-3. It gives the object a few helpers: `self.render_template`, `self.translate` and `self.fetch_json`.
+3. It gives the object a few helpers: `self.render_template`, `self.translate`, `self.fetch_json` and `self.fetch`.
    They don't exist yet inside `__init__`, so use them from `run_loop`.
 4. It starts `run_loop(broadcast_func)`, which runs as long as the mirror does. Each time it has
    something new to show, it calls `await broadcast_func(self.name, html)`.
@@ -777,7 +777,7 @@ A module is shared through GitHub. Every mirror can install it from there, and f
 
 Now your module shows up under **Modules** in every mirror's admin page, and anyone can install it with
 one click. They can also paste its address (`git+https://github.com/<you>/mirrordash-outside.git`)
-under **Modules → Install a Module from GitHub**.
+under **Modules → Add modules → Install from a Git URL or folder**.
 
 > [!IMPORTANT]
 > **Without a GitHub Release, mirrors can't see or install the module.** They always install the newest
@@ -831,13 +831,18 @@ Errors from your module start with its name, for example `mirrordash.modules.mir
 | :--- | :--- |
 | `self.render_template("widget.html", **values)` | Fills in a template from `templates/` and gives back the HTML. The template also gets `translations` and `show_header`. |
 | `self.translate("key", "default")` | A text from `translations/`. |
-| `await self.fetch_json(url, headers=…, params=…, timeout=10)` | Fetches JSON; gives back `(data, error)`. See [part 5](#5-fetching-data). |
+| `await self.fetch_json(url, headers=…, params=…, timeout=10, max_age=…)` | Fetches JSON; gives back `(data, error)`. See [part 5](#5-fetching-data). |
+| `await self.fetch(url, …)` | The same for anything that isn't JSON (RSS, ICS, XML); `data` is bytes. |
 | `async with self.video_window(fullscreen=False, hz=None) as window:` | Places your player's window (app id `window.app_id`) over the card's `data-video-window` element, or fullscreen. See [part 3](#3-how-a-module-works). |
 | `async with self.video_is_playing():` | For a module that shows moving pictures some other way: meanwhile the other modules update once a minute. |
 
 **`await broadcast_func(self.name, html)`** puts `html` in your module's place on the screen.
 
-`fetch_json` and the component library need MirrorDash 0.5 or newer; `mirrordash-sdk dev-setup` installs
+**On your class:** `keep_running = True` keeps `fetch`/`fetch_json` going while the screen is off (a data
+logger); without it they wait until the screen is on. See [part 5](#5-fetching-data).
+
+`fetch_json` and the component library need MirrorDash 0.5 or newer, `video_window` and
+`video_is_playing` 0.8.0; `mirrordash-sdk dev-setup` installs
 the right version.
 
 ---
