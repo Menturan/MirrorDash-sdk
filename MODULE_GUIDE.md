@@ -476,6 +476,8 @@ The most useful components:
   mirror redraw the whole screen 60 times a second, day and night, and the Raspberry Pi runs hot.
   Between updates your card stands still. A ticker steps instead: `setInterval` every few seconds and a
   short `transition`. Motion is fine while something loads, if it stops. `mirrordash-sdk validate` warns.
+  If it really must scroll smoothly: `steps()` with one whole pixel per step, no `mask-image` and
+  `will-change: transform` draws only when it moves, about a quarter of the cost (validate warns mildly).
 - The mirror's browser is **WebKit** (like Safari), not Chrome. Plain HTML, CSS and JavaScript work; avoid
   brand-new or Chrome-only features.
 

@@ -236,14 +236,17 @@ def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
 
         # A never-ending animation redraws the whole screen 60 times a second, all day: a Pi 3 runs warm on it
         # ponytail: a text search per line; an animation built from a string in JS, or split over lines, slips past
+        # steps() redraws only when the value changes: a smooth scroll of one pixel per step costs about a quarter
+        # (measured on a Pi 3, core ARCHITECTURE #37), so it gets the mild warning
         never_ending = re.compile(r"animation[^;{}]*\binfinite\b|requestAnimationFrame")
-        endless = []
+        endless, stepped = [], []
         for web_file in sorted(package_dir.rglob("*")):
             if web_file.suffix not in (".html", ".css", ".js") or "tests" in web_file.relative_to(package_dir).parts:
                 continue
             for lineno, line in enumerate(web_file.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
                 if never_ending.search(line):
-                    endless.append(f"{web_file.relative_to(path)}:{lineno}")
+                    where = f"{web_file.relative_to(path)}:{lineno}"
+                    (stepped if "steps(" in line and "requestAnimationFrame" not in line else endless).append(where)
         if endless:
             print(f"  [!] WARNING — NEVER-ENDING ANIMATION: {', '.join(endless)}")
             print("      An infinite CSS animation or a requestAnimationFrame loop makes the mirror redraw the whole")
@@ -251,7 +254,12 @@ def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
             print("      Let the card stand still between updates: step with setInterval and a short transition")
             print("      (a ticker that moves one item every few seconds), or show motion only while something loads.")
             has_warnings = True
-        else:
+        if stepped:
+            print(f"  [!] Warning: never-ending animation with steps(): {', '.join(stepped)}")
+            print("      It redraws only on each step, about a quarter of a smooth one at one pixel per step, but")
+            print("      never stops. Stepping one item every few seconds (setInterval and a short transition) costs less.")
+            has_warnings = True
+        if not endless and not stepped:
             print("  [✓] No never-ending animations (the card stands still between updates)")
 
     # 3. Check README.md and screenshot.png

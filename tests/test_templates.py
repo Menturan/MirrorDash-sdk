@@ -103,3 +103,15 @@ def test_validate_warns_hard_about_a_never_ending_animation_but_passes(tmp_path,
     result = runner.invoke(main, ["validate", "mirrordash-demo"])
     assert f"NEVER-ENDING ANIMATION: mirrordash_demo/templates/widget.html:{lines}" in result.output
     assert result.exit_code == 0 and "FAIL" not in result.output
+
+
+def test_validate_warns_mildly_about_a_stepped_animation(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(main, ["create-module", "mirrordash-demo"])
+    widget = Path("mirrordash-demo/mirrordash_demo/templates/widget.html")
+    widget.write_text(widget.read_text() + "\n<style>.ticker { animation: px 40s steps(1000) infinite; }</style>\n")
+
+    result = runner.invoke(main, ["validate", "mirrordash-demo"])
+    assert "never-ending animation with steps(): mirrordash_demo/templates/widget.html:" in result.output
+    assert "NEVER-ENDING ANIMATION" not in result.output and result.exit_code == 0
