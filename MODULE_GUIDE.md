@@ -472,6 +472,10 @@ The most useful components:
 
 - **No background color** on your module: it floats on the black mirror.
 - **No fixed widths** like `width: 150px` on text: Swedish or German words are often longer than English.
+- **Nothing moves forever.** An `infinite` CSS animation or a `requestAnimationFrame` loop makes the
+  mirror redraw the whole screen 60 times a second, day and night, and the Raspberry Pi runs hot.
+  Between updates your card stands still. A ticker steps instead: `setInterval` every few seconds and a
+  short `transition`. Motion is fine while something loads, if it stops. `mirrordash-sdk validate` warns.
 - The mirror's browser is **WebKit** (like Safari), not Chrome. Plain HTML, CSS and JavaScript work; avoid
   brand-new or Chrome-only features.
 

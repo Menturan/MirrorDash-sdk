@@ -1,5 +1,6 @@
 import ast
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -232,6 +233,26 @@ def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
             has_warnings = True
         else:
             print("  [✓] Fetches data through self.fetch / self.fetch_json")
+
+        # A never-ending animation redraws the whole screen 60 times a second, all day: a Pi 3 runs warm on it
+        # ponytail: a text search per line; an animation built from a string in JS, or split over lines, slips past
+        never_ending = re.compile(r"animation[^;{}]*\binfinite\b|requestAnimationFrame")
+        endless = []
+        for web_file in sorted(package_dir.rglob("*")):
+            if web_file.suffix not in (".html", ".css", ".js") or "tests" in web_file.relative_to(package_dir).parts:
+                continue
+            for lineno, line in enumerate(web_file.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+                if never_ending.search(line):
+                    endless.append(f"{web_file.relative_to(path)}:{lineno}")
+        if endless:
+            print(f"  [!] WARNING — NEVER-ENDING ANIMATION: {', '.join(endless)}")
+            print("      An infinite CSS animation or a requestAnimationFrame loop makes the mirror redraw the whole")
+            print("      screen 60 times a second, day and night: the Raspberry Pi runs hot and uses more power.")
+            print("      Let the card stand still between updates: step with setInterval and a short transition")
+            print("      (a ticker that moves one item every few seconds), or show motion only while something loads.")
+            has_warnings = True
+        else:
+            print("  [✓] No never-ending animations (the card stands still between updates)")
 
     # 3. Check README.md and screenshot.png
     readme_file = path / "README.md"

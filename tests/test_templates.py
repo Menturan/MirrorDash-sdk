@@ -90,3 +90,16 @@ def test_validate_warns_about_an_own_http_client_but_passes(tmp_path, monkeypatc
     result = runner.invoke(main, ["validate", "mirrordash-demo"])
     assert "its own HTTP client: mirrordash_demo/plugin.py:2 (httpx)" in result.output
     assert result.exit_code == 0 and "FAIL" not in result.output
+
+
+def test_validate_warns_hard_about_a_never_ending_animation_but_passes(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(main, ["create-module", "mirrordash-demo"])
+    widget = Path("mirrordash-demo/mirrordash_demo/templates/widget.html")
+    widget.write_text(widget.read_text() + "\n<style>.ticker { animation: scroll 60s linear infinite; }</style>\n")
+    lines = len(widget.read_text().splitlines())
+
+    result = runner.invoke(main, ["validate", "mirrordash-demo"])
+    assert f"NEVER-ENDING ANIMATION: mirrordash_demo/templates/widget.html:{lines}" in result.output
+    assert result.exit_code == 0 and "FAIL" not in result.output
