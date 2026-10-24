@@ -378,6 +378,19 @@ for the screen (`await broadcast_func(...)`) or for time (`await asyncio.sleep(.
 - When the mirror stops, `run_loop` gets an `asyncio.CancelledError`. Let it through with
   `except asyncio.CancelledError: raise` (`mirrordash-sdk validate` checks for it).
 
+**Where your module runs:** apart from MirrorDash itself, in the *module host*: its own process, as its
+own user, in a sandbox. On a mirror that means:
+
+- It reaches the **internet**, but not the mirror's own pages and not devices on the **home network**,
+  except the addresses the owner typed in a setting marked `"format": "lan-url"` (see [part 6](#6-settings)).
+- It writes only in its `data_dir` and `cache_dir` (see [part 8](#8-saving-files)); it can't read
+  MirrorDash's settings, passwords or logins, nor run system commands.
+- It can use **GPIO, I²C and SPI** (see [part 9](#9-hardware-and-other-modules)), but not the camera,
+  the screen or the sound.
+- All modules share the host, so they can see each other's settings and files.
+- The mirror never runs your code to show the admin page: it reads `config_schema.json`, `icon.svg` and
+  `translations/` as files. A schema written in the Python class isn't read.
+
 **While a video plays:** a video beside the modules stays smooth only while the rest of the screen
 stands still, because every redraw of the page costs the Raspberry Pi a video frame. So while a module
 plays a video, the mirror updates once a minute, on the minute:
@@ -625,6 +638,8 @@ self.city = config.get("city", "Stockholm")
   with its JSON in the component library: `http://localhost:8000/design#forms`.
 - **Secrets** (API keys, tokens, passwords) get `"format": "password"`, so the admin page hides what is
   typed. `mirrordash-sdk validate` warns if you forget.
+- **An address at home** (Home Assistant, a printer, a sensor box) gets `"format": "lan-url"`. Your module
+  may reach the home network only at the addresses typed in such settings; the admin page tells the owner.
 - **Don't add these yourself:** `enabled`, `position`, `carousel_group`, `carousel_interval`,
   `max_width`, `max_height`, `z_index` and `opacity`. The mirror adds them to every module's form.
 - When the user changes a setting, the mirror restarts your module with the new values.
@@ -737,11 +752,14 @@ class GarageModule:
 ```
 
 Anyone on the home network can call these addresses: the mirror doesn't ask them to log in. If a call
-does something, check a secret yourself, for example a token from your settings in a header.
+does something, check a secret yourself, for example a token from your settings in a header. Plain HTTP
+only (no WebSockets), up to 1 MB in and 4 MB out, answered within 30 seconds. Your answer can't set
+cookies, and a browser opens an HTML answer as a sandboxed page, with no scripts.
 
 **GPIO pins of your own.** For a button, a motion sensor, a temperature sensor or a light sensor, use
 the messages above: the mirror handles the pins. Other pins (a relay, an LED) your module can drive
-itself with the [`gpiod`](https://pypi.org/project/gpiod/) package. The pins the user picked under
+itself with the [`gpiod`](https://pypi.org/project/gpiod/) package (`/dev/gpiochip*`; the old
+`/sys/class/gpio` is read-only for modules). I²C and SPI devices work the same way. The pins the user picked under
 **Admin → Hardware** belong to the mirror, and trying to use them fails with "Device or resource busy".
 
 ---
@@ -876,7 +894,7 @@ logger); without it they wait until the screen is on. See [part 5](#5-fetching-d
 A `router` (FastAPI `APIRouter`) gives your module its own web addresses. See [part 9](#9-hardware-and-other-modules).
 
 `fetch_json` and the component library need MirrorDash 0.5 or newer, `video_window` and
-`video_is_playing` 0.8.0, `router` and `api_path` 0.9.1; `mirrordash-sdk dev-setup` installs
+`video_is_playing` 0.8.0, `router`, `api_path` and `"format": "lan-url"` 0.9.1; `mirrordash-sdk dev-setup` installs
 the right version.
 
 ---
