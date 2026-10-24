@@ -718,6 +718,32 @@ Inputs**):
 | `hardware.light` | `{"lux": 250.0}` | Every 30 s. |
 | `hardware.fan` | `{"level": 2, "max_level": 4, "cpu_temperature_c": 62.5}` | Every 30 s. `level` 0 is off. |
 
+**Your own web addresses.** A sensor, a phone shortcut or Home Assistant can call your module directly.
+Give the class a `router` (FastAPI's `APIRouter`, already on the mirror) and the mirror serves it at
+`http://mirrordash.local/api/modules/<instance>/...`. `config["api_path"]` is that path, so you can show
+it in the module's card or README:
+
+```python
+from fastapi import APIRouter
+
+class GarageModule:
+    def __init__(self, config):
+        self.router = APIRouter()
+        self.router.post("/door")(self.on_door)   # POST http://mirrordash.local/api/modules/garage/door
+
+    async def on_door(self, data: dict):
+        self.door_open = data["open"]
+        return {"ok": True}
+```
+
+Anyone on the home network can call these addresses: the mirror doesn't ask them to log in. If a call
+does something, check a secret yourself, for example a token from your settings in a header.
+
+**GPIO pins of your own.** For a button, a motion sensor, a temperature sensor or a light sensor, use
+the messages above: the mirror handles the pins. Other pins (a relay, an LED) your module can drive
+itself with the [`gpiod`](https://pypi.org/project/gpiod/) package. The pins the user picked under
+**Admin → Hardware** belong to the mirror, and trying to use them fails with "Device or resource busy".
+
 ---
 
 ## 10. Testing
@@ -830,6 +856,7 @@ Errors from your module start with its name, for example `mirrordash.modules.mir
 | `"cache_dir"` | A folder for things that may be thrown away. |
 | `"translations"` | The module's texts in the mirror's language. Usually you use `self.translate` instead. |
 | `"event_bus"` | Messages between modules, and from hardware. See [part 9](#9-hardware-and-other-modules). |
+| `"api_path"` | Where your module's `router` is served, `/api/modules/<instance>`. See [part 9](#9-hardware-and-other-modules). |
 
 **On `self`** (added after `__init__`, so use them from `run_loop`):
 
@@ -846,9 +873,10 @@ Errors from your module start with its name, for example `mirrordash.modules.mir
 
 **On your class:** `keep_running = True` keeps `fetch`/`fetch_json` going while the screen is off (a data
 logger); without it they wait until the screen is on. See [part 5](#5-fetching-data).
+A `router` (FastAPI `APIRouter`) gives your module its own web addresses. See [part 9](#9-hardware-and-other-modules).
 
 `fetch_json` and the component library need MirrorDash 0.5 or newer, `video_window` and
-`video_is_playing` 0.8.0; `mirrordash-sdk dev-setup` installs
+`video_is_playing` 0.8.0, `router` and `api_path` 0.9.1; `mirrordash-sdk dev-setup` installs
 the right version.
 
 ---
