@@ -40,9 +40,12 @@ uvx mirrordash-sdk start
 ### State & Persistence (OverlayFS Compliance)
 The system runs on a read-only root filesystem in production.
 - **Do not write to package directories**: Never open files relative to `__file__` for writing.
-- **Use Injected Paths**:
-  - `self.data_dir`: Write SQLite databases, configurations, and user state here (backed up).
-  - `self.cache_dir`: Write temporary data, HTTP response caches, and asset downloads here (excluded from backups).
+- **Use the paths in `config`** (each instance has its own; no other folder is writable, and no other module's is readable):
+  - `config["data_dir"]`: SQLite databases, configurations, and user state (backed up).
+  - `config["cache_dir"]`: temporary data and asset downloads (excluded from backups). `fetch_json` caches its answers here by itself.
+
+### The Sandbox
+Every instance runs in a process of its own as a user of its own: no `sudo`, no home network except the addresses in `"format": "lan-url"` settings, I²C and SPI but no GPIO chip (`gpiod`, `gpiozero` and `RPi.GPIO` don't work: ask for pins with `await self.gpio([27], output=True)`). The `event_bus` in `config` carries the mirror's hardware messages (`hardware.button`, `hardware.motion`, `hardware.climate`, `hardware.light`, `hardware.fan`); it doesn't reach other modules. A class `router` (FastAPI `APIRouter`) is served at `config["api_path"]` without a login: check a secret yourself. Details: MODULE_GUIDE.md parts 3 and 9.
 
 ---
 
@@ -62,14 +65,14 @@ def __init__(self, config):
 
 ### Localization Mappings
 1. Place translation dictionaries in a `translations/` directory (e.g. `en.json`, `sv.json`) inside your package folder.
-2. The core automatically resolves and merges `translations` onto the Jinja2 render context as `translations` and attaches them to `self.translations`.
+2. The mirror picks the file for its language (English for what is missing) and gives it to templates as `translations` and to Python as `self.translations`.
 3. Use the injected helper `self.translate("key", "default_val")` inside Python files.
 
 ---
 
 ## 4. UI Design & Styling Rules
 
-All module designs must adhere to the MirrorDash **Ethereal Design System** to preserve visual unity on a dark ambient mirror display:
+All module designs follow the mirror's design system (the component library at `/design`), so every module looks like part of one calm display:
 
 - **Transparent Backgrounds**: Widgets float on a pure black background. Never define a custom background color on the module wrapper.
 - **Component library first**: start every layout from `http://localhost:8000/design` and copy its markup; everything there works in a module except the parts marked "The mirror's own UI". The usual ones: `.module-header`, `.display-xl`/`.display-lg` (big numbers), `.data-list` (label–value rows), `.stats-grid`, `.forecast-grid`, `.agenda-list`, `.gauge-bar`, `.alert-callout`, `.module-message` (errors and empty states), `.flex-*`, `.text-*`. No CSS needed for these.

@@ -11,7 +11,7 @@ uvx mirrordash-sdk validate .    # checks the module before you push it
 
 Try it on a local mirror: see the [MirrorDash SDK](https://github.com/Menturan/mirrordash-sdk#quick-start).
 
-Share it: push to GitHub and make a GitHub Release (tag `v` + the version in `pyproject.toml`); mirrors install it from the Git URL.
+Share it: push it to GitHub, then `uvx mirrordash-sdk release 0.1.0` makes the release mirrors install.
 
 ## Settings
 

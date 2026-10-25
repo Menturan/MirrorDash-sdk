@@ -28,9 +28,6 @@ ERRORS = {
 
 
 class $class_name:
-    # Keeps pytest from collecting this class as a test
-    __test__ = False
-
     def __init__(self, config):
         # config holds this module's settings from the admin page (see config_schema.json).
         # The mirror adds self.render_template, self.translate and self.fetch_json after __init__.

@@ -22,7 +22,7 @@ For sharing your module at the end, you also need a GitHub account. Words in *it
 6. [Settings](#6-settings)
 7. [Translations](#7-translations)
 8. [Saving files](#8-saving-files)
-9. [Hardware and other modules](#9-hardware-and-other-modules)
+9. [Hardware, video and web addresses](#9-hardware-video-and-web-addresses)
 10. [Testing](#10-testing)
 11. [Sharing your module](#11-sharing-your-module)
 12. [Troubleshooting](#12-troubleshooting)
@@ -114,9 +114,6 @@ def parse(data: dict, show_wind: bool) -> dict:
 
 
 class OutsideModule:
-    # Keeps pytest from collecting this class as a test
-    __test__ = False
-
     def __init__(self, config):
         self.config = config
         self.name = "mirrordash_outside"
@@ -142,7 +139,7 @@ class OutsideModule:
             "latitude": self.latitude,
             "longitude": self.longitude,
             "current": "temperature_2m,wind_speed_10m,relative_humidity_2m",
-        })
+        }, max_age=self.interval)
         message = self.translate("fetch_failed", "Couldn't update.") if error else None
         shown = parse(data, self.show_wind) if data else None
         return self.render_template("widget.html", data=shown, message=message, icon="cloud-off")
@@ -152,7 +149,8 @@ What it does, from the bottom up:
 
 - `render()` asks Open-Meteo for the current weather with `self.fetch_json` (a helper the mirror gives
   every module, see [part 5](#5-fetching-data)), turns the answer into what to show with `parse()`, and
-  fills in `templates/widget.html` with it.
+  fills in `templates/widget.html` with it. `max_age` reuses an answer younger than the interval, so a
+  restart doesn't ask Open-Meteo again.
 - `run_loop()` runs as long as the mirror does: it shows the result, waits `interval` seconds (600 = 10
   minutes), and starts over. `broadcast_func` is how you send the result to the screen.
 - `__init__()` reads the module's settings from `config`. The mirror's own location (latitude and
@@ -370,82 +368,26 @@ for the screen (`await broadcast_func(...)`) or for time (`await asyncio.sleep(.
 
 **When `run_loop` stops and starts again:**
 
-- When the user changes a setting, the mirror stops every module and creates them again with the new
-  settings. That's why you read settings in `__init__`.
+- When the user changes one of your module's settings, the mirror stops your module and creates it again
+  with the new settings. That's why you read settings in `__init__`. Moving it on the screen restarts
+  nothing.
 - If `run_loop` crashes, the mirror logs the error and starts it again after 5 seconds, then 10, 20 and
   so on, at most every 5 minutes. Catch errors inside the loop (as the tutorial does) so one bad answer
   doesn't stop the module.
 - When the mirror stops, `run_loop` gets an `asyncio.CancelledError`. Let it through with
   `except asyncio.CancelledError: raise` (`mirrordash-sdk validate` checks for it).
 
-**Where your module runs:** apart from MirrorDash itself, in the *module host*: its own process, as its
-own user, in a sandbox. On a mirror that means:
+**Where your module runs:** apart from MirrorDash, in a sandbox: each copy of your module in a process of
+its own, as a user of its own. On a mirror that means:
 
 - It reaches the **internet**, but not the mirror's own pages and not devices on the **home network**,
   except the addresses the owner typed in a setting marked `"format": "lan-url"` (see [part 6](#6-settings)).
-- It writes only in its `data_dir` and `cache_dir` (see [part 8](#8-saving-files)); it can't read
-  MirrorDash's settings, passwords or logins, nor run system commands.
+- It writes only in its `data_dir` and `cache_dir` (see [part 8](#8-saving-files)). It can't read
+  MirrorDash's settings, passwords or logins, nor another module's settings or files, and it has no `sudo`.
 - It can use **I²C and SPI**, and the free **GPIO** pins it asks the mirror for with `self.gpio` (see
-  [part 9](#9-hardware-and-other-modules)), but not the camera, the screen or the sound.
-- All modules share the host, so they can see each other's settings and files.
+  [part 9](#9-hardware-video-and-web-addresses)), but not the camera or the sound.
 - The mirror never runs your code to show the admin page: it reads `config_schema.json`, `icon.svg` and
   `translations/` as files. A schema written in the Python class isn't read.
-
-**While a video plays:** a video beside the modules stays smooth only while the rest of the screen
-stands still, because every redraw of the page costs the Raspberry Pi a video frame. So while a module
-plays a video, the mirror updates once a minute, on the minute:
-
-- Your module's new HTML (`broadcast_func`) waits for the next whole minute. You don't need to do
-  anything.
-- CSS animations and transitions in your module stand still, and carousels switch on the minute
-  without their fade.
-- Your own scripts are yours to calm: while your module's host has `data-video-is-playing`, change
-  nothing on your card more often than once a minute, on the minute. The `mirrordash:video_is_playing`
-  event (with `detail.playing`) says when it starts and stops. The clock module hides its seconds:
-
-  ```html
-  <style>:host([data-video-is-playing]) .seconds { display: none; }</style>
-  <script>
-      const playing = () => root.host.hasAttribute('data-video-is-playing');
-      function tick() {
-          clearTimeout(root._timer);
-          draw();
-          root._timer = setTimeout(tick, playing() ? 60000 - Date.now() % 60000 : 1000);
-      }
-      tick();
-      removeEventListener('mirrordash:video_is_playing', root._onVideo);
-      addEventListener('mirrordash:video_is_playing', root._onVideo = tick);
-  </script>
-  ```
-
-- A module that plays a video in `self.video_window` (below) gets all this for itself, and its own
-  updates still go out at once.
-
-**Playing a video:** the mirror gives your video its place; your module brings the player. Put an element
-with `data-video-window` on your card where the video goes, sized with CSS, and run your player inside
-`self.video_window()`:
-
-```html
-<div data-video-window style="width: 100%; aspect-ratio: 16 / 9; background: #000"></div>
-```
-
-```python
-async with self.video_window(hz=50) as window:
-    player = await asyncio.create_subprocess_exec("/usr/bin/python3", "-I", PLAYER, url, window.app_id)
-    await player.wait()
-```
-
-- Inside the block, a window with the app id `window.app_id` lands over the element (`window.rect` is
-  where, in screen pixels), the screen runs at 50 Hz if it can (European TV is 25 or 50 frames a second
-  and judders at 60 Hz), and the other modules update once a minute. All of it ends with the block.
-- `fullscreen=True`: no element needed; the player opens its window fullscreen (`window.fullscreen`).
-- The mirror has GStreamer with the Raspberry Pi's H.264 decoder and its Python bindings for the
-  system's Python (`/usr/bin/python3`; your module's own Python doesn't have them), so a player is a
-  small script your module runs: `GLib.set_prgname(window.app_id)` gives its window the app id, and
-  `playbin3` with `waylandsink` plays the stream. Stop it (`player.terminate()`) when your module stops.
-- One video window at a time; a second waits for the first. Streams with DRM can't play. In an HLS
-  stream, remove the subtitle renditions from the playlist: with them, the first frame waits some 18 s.
-- The window's place is taken when the block starts.
 
 ---
 
@@ -702,28 +644,24 @@ Each copy of your module (a user can add the same module twice) gets its own fol
 
 ---
 
-## 9. Hardware and other modules
+## 9. Hardware, video and web addresses
 
-Modules can send each other messages through the mirror's *event bus*, and the mirror sends messages
-about connected hardware the same way. You get the bus in `config`:
+**Hardware messages.** When the user connected a button or a sensor under **Admin → Hardware → Sensors &
+Inputs**, the mirror sends a message for it on the *event bus*. You get the bus in `config`; subscribe in
+`__init__`:
 
 ```python
 class RoomModule:
     def __init__(self, config):
-        event_bus = config.get("event_bus")
+        event_bus = config.get("event_bus")  # not there in a test
         if event_bus:
-            event_bus.subscribe("hardware.climate", self.on_climate)  # call on_climate for each message
+            event_bus.subscribe("hardware.climate", self.on_climate)  # on_climate gets each message
 
     def on_climate(self, data):
         self.temperature = data["temperature_c"]
 ```
 
-Send your own messages with `event_bus.publish("mymodule:update", {"value": 21})`. Start the names with
-your module's name so they don't clash. Subscribe in `__init__`: when settings change, all subscriptions
-are cleared and every module is created again. A subscriber can be a normal function or an `async def`.
-
-**Hardware messages** (only sent if the user connected the device under **Admin → Hardware → Sensors &
-Inputs**):
+A subscriber can be a normal function or an `async def`.
 
 | Message | Data | When |
 | :--- | :--- | :--- |
@@ -732,6 +670,62 @@ Inputs**):
 | `hardware.climate` | `{"temperature_c": 21.5, "humidity": 40}` | Every 30 s. Always °C; convert with the `temperature_unit` global setting. |
 | `hardware.light` | `{"lux": 250.0}` | Every 30 s. |
 | `hardware.fan` | `{"level": 2, "max_level": 4, "cpu_temperature_c": 62.5}` | Every 30 s. `level` 0 is off. |
+
+**While a video plays.** A video beside the modules stays smooth only while the rest of the screen
+stands still, because every redraw of the page costs the Raspberry Pi a video frame. So while a module
+plays a video, the mirror updates once a minute, on the minute:
+
+- Your module's new HTML (`broadcast_func`) waits for the next whole minute. You don't need to do
+  anything.
+- CSS animations and transitions in your module stand still, and carousels switch on the minute
+  without their fade.
+- Your own scripts are yours to calm: while your module's host has `data-video-is-playing`, change
+  nothing on your card more often than once a minute, on the minute. The `mirrordash:video_is_playing`
+  event (with `detail.playing`) says when it starts and stops. The clock module hides its seconds:
+
+  ```html
+  <style>:host([data-video-is-playing]) .seconds { display: none; }</style>
+  <script>
+      const playing = () => root.host.hasAttribute('data-video-is-playing');
+      function tick() {
+          clearTimeout(root._timer);
+          draw();
+          root._timer = setTimeout(tick, playing() ? 60000 - Date.now() % 60000 : 1000);
+      }
+      tick();
+      removeEventListener('mirrordash:video_is_playing', root._onVideo);
+      addEventListener('mirrordash:video_is_playing', root._onVideo = tick);
+  </script>
+  ```
+
+- A module that plays a video in `self.video_window` (below) gets all this for itself, and its own
+  updates still go out at once.
+
+**Playing a video.** The mirror gives your video its place; your module brings the player. Put an element
+with `data-video-window` on your card where the video goes, sized with CSS, and run your player inside
+`self.video_window()`:
+
+```html
+<div data-video-window style="width: 100%; aspect-ratio: 16 / 9; background: #000"></div>
+```
+
+```python
+async with self.video_window(hz=50) as window:
+    player = await asyncio.create_subprocess_exec("/usr/bin/python3", "-I", PLAYER, url, window.app_id)
+    await player.wait()
+```
+
+- Inside the block, a window with the app id `window.app_id` lands over the element (`window.rect` is
+  where, in screen pixels), the screen runs at 50 Hz if it can (European TV is 25 or 50 frames a second
+  and judders at 60 Hz), and the other modules update once a minute. All of it ends with the block.
+- `fullscreen=True`: no element needed; the player opens its window fullscreen (`window.fullscreen`).
+- The mirror has GStreamer with the Raspberry Pi's H.264 decoder and its Python bindings for the
+  system's Python (`/usr/bin/python3`; your module's own Python doesn't have them), so a player is a
+  small script your module runs: `GLib.set_prgname(window.app_id)` gives its window the app id, and
+  `playbin3` with `waylandsink` plays the stream. Stop it (`player.terminate()`) when your module stops.
+- One video window at a time; a second waits for the first. Streams with DRM can't play. In an HLS
+  stream, remove the subtitle renditions from the playlist: with them, the first frame waits some 18 s.
+- The window's place is taken when the block starts.
 
 **Your own web addresses.** A sensor, a phone shortcut or Home Assistant can call your module directly.
 Give the class a `router` (FastAPI's `APIRouter`, already on the mirror) and the mirror serves it at
@@ -889,8 +883,8 @@ Errors from your module start with its name, for example `mirrordash.modules.mir
 | `"data_dir"` | A folder for things to keep. See [part 8](#8-saving-files). |
 | `"cache_dir"` | A folder for things that may be thrown away. |
 | `"translations"` | The module's texts in the mirror's language. Usually you use `self.translate` instead. |
-| `"event_bus"` | Messages between modules, and from hardware. See [part 9](#9-hardware-and-other-modules). |
-| `"api_path"` | Where your module's `router` is served, `/api/modules/<instance>`. See [part 9](#9-hardware-and-other-modules). |
+| `"event_bus"` | Messages from the mirror's hardware (buttons, sensors). See [part 9](#9-hardware-video-and-web-addresses). |
+| `"api_path"` | Where your module's `router` is served, `/api/modules/<instance>`. See [part 9](#9-hardware-video-and-web-addresses). |
 
 **On `self`** (added after `__init__`, so use them from `run_loop`):
 
@@ -900,15 +894,15 @@ Errors from your module start with its name, for example `mirrordash.modules.mir
 | `self.translate("key", "default")` | A text from `translations/`. |
 | `await self.fetch_json(url, headers=…, params=…, timeout=10, max_age=…)` | Fetches JSON; gives back `(data, error)`. See [part 5](#5-fetching-data). |
 | `await self.fetch(url, …)` | The same for anything that isn't JSON (RSS, ICS, XML); `data` is bytes. |
-| `async with self.video_window(fullscreen=False, hz=None) as window:` | Places your player's window (app id `window.app_id`) over the card's `data-video-window` element, or fullscreen. See [part 3](#3-how-a-module-works). |
+| `async with self.video_window(fullscreen=False, hz=None) as window:` | Places your player's window (app id `window.app_id`) over the card's `data-video-window` element, or fullscreen. See [part 9](#9-hardware-video-and-web-addresses). |
 | `async with self.video_is_playing():` | For a module that shows moving pictures some other way: meanwhile the other modules update once a minute. |
-| `lines = await self.gpio([27], output=True)` | Free GPIO header pins from the mirror: `lines.get(pin)`, `lines.set(pin, 1)`, `async for e in lines.events()`, `lines.close()`. Options: `output`, `initial`, `pull` (`"up"`, `"down"`, `"off"`), `edge` (`"rising"`, `"falling"`, `"both"`), `active_low`, `debounce_ms`. See [part 9](#9-hardware-and-other-modules). |
+| `lines = await self.gpio([27], output=True)` | Free GPIO header pins from the mirror: `lines.get(pin)`, `lines.set(pin, 1)`, `async for e in lines.events()`, `lines.close()`. Options: `output`, `initial`, `pull` (`"up"`, `"down"`, `"off"`), `edge` (`"rising"`, `"falling"`, `"both"`), `active_low`, `debounce_ms`. See [part 9](#9-hardware-video-and-web-addresses). |
 
 **`await broadcast_func(self.name, html)`** puts `html` in your module's place on the screen.
 
 **On your class:** `keep_running = True` keeps `fetch`/`fetch_json` going while the screen is off (a data
 logger); without it they wait until the screen is on. See [part 5](#5-fetching-data).
-A `router` (FastAPI `APIRouter`) gives your module its own web addresses. See [part 9](#9-hardware-and-other-modules).
+A `router` (FastAPI `APIRouter`) gives your module its own web addresses. See [part 9](#9-hardware-video-and-web-addresses).
 
 `fetch_json` and the component library need MirrorDash 0.5 or newer, `video_window` and
 `video_is_playing` 0.8.0, `router`, `api_path`, `"format": "lan-url"` and `gpio` 0.9.1; `mirrordash-sdk dev-setup` installs
@@ -926,7 +920,7 @@ the right version.
 | **broadcast** | Sending your module's HTML to the screen. |
 | **component library** | `http://localhost:8000/design`: the mirror's building blocks for the look, with code to copy. |
 | **entry point** | A line in `pyproject.toml` that tells the mirror which class is your module. `create-module` writes it. |
-| **event bus** | The mirror's way of passing messages between modules (and from hardware). |
+| **event bus** | How the mirror tells your module about its hardware: a button press, a sensor's reading. |
 | **header** | Extra information sent with a web request, for example an API key. |
 | **Jinja** | The `{{ ... }}` and `{% ... %}` in templates: they fill in values and repeat or hide parts. |
 | **JSON** | A text format for data: `{"temperature": 21}`. Python reads it as a dictionary. |
