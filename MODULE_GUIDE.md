@@ -385,8 +385,8 @@ own user, in a sandbox. On a mirror that means:
   except the addresses the owner typed in a setting marked `"format": "lan-url"` (see [part 6](#6-settings)).
 - It writes only in its `data_dir` and `cache_dir` (see [part 8](#8-saving-files)); it can't read
   MirrorDash's settings, passwords or logins, nor run system commands.
-- It can use **GPIO, I²C and SPI** (see [part 9](#9-hardware-and-other-modules)), but not the camera,
-  the screen or the sound.
+- It can use **I²C and SPI**, and the free **GPIO** pins it asks the mirror for with `self.gpio` (see
+  [part 9](#9-hardware-and-other-modules)), but not the camera, the screen or the sound.
 - All modules share the host, so they can see each other's settings and files.
 - The mirror never runs your code to show the admin page: it reads `config_schema.json`, `icon.svg` and
   `translations/` as files. A schema written in the Python class isn't read.
@@ -757,10 +757,26 @@ only (no WebSockets), up to 1 MB in and 4 MB out, answered within 30 seconds. Yo
 cookies, and a browser opens an HTML answer as a sandboxed page, with no scripts.
 
 **GPIO pins of your own.** For a button, a motion sensor, a temperature sensor or a light sensor, use
-the messages above: the mirror handles the pins. Other pins (a relay, an LED) your module can drive
-itself with the [`gpiod`](https://pypi.org/project/gpiod/) package (`/dev/gpiochip*`; the old
-`/sys/class/gpio` is read-only for modules). I²C and SPI devices work the same way. The pins the user picked under
-**Admin → Hardware** belong to the mirror, and trying to use them fails with "Device or resource busy".
+the messages above: the mirror handles the pins. Other pins (a relay, an LED, a switch of your own) you
+ask the mirror for with `self.gpio`, by their GPIO (BCM) numbers:
+
+```python
+relay = await self.gpio([27], output=True)          # initial=0 or 1, active_low=True
+relay.set(27, 1)
+
+door = await self.gpio([22], pull="up", edge="both", debounce_ms=20)
+print(door.get(22))
+async for event in door.events():                   # event.pin, event.rising, event.ns
+    ...
+```
+
+You get exactly those lines and nothing else: your module can't open `/dev/gpiochip*`, `/dev/gpiomem`
+or `/sys/class/gpio` (a whole chip would be the SD card's and the mirror's pins too), so `gpiod`,
+`gpiozero` and `RPi.GPIO` don't work there. Only free header pins: GPIO 0 and 1 (the HAT EEPROM), the pins
+the user picked under **Admin → Hardware**, and GPIO 2 and 3 while an I²C sensor is set up belong to the
+mirror, and asking for them raises `RuntimeError` with the reason. The lines are yours until you call
+`close()` (or `with` the object) or the module stops. I²C and SPI devices you open yourself
+(`/dev/i2c-*`, `/dev/spidev*`).
 
 ---
 
@@ -886,6 +902,7 @@ Errors from your module start with its name, for example `mirrordash.modules.mir
 | `await self.fetch(url, …)` | The same for anything that isn't JSON (RSS, ICS, XML); `data` is bytes. |
 | `async with self.video_window(fullscreen=False, hz=None) as window:` | Places your player's window (app id `window.app_id`) over the card's `data-video-window` element, or fullscreen. See [part 3](#3-how-a-module-works). |
 | `async with self.video_is_playing():` | For a module that shows moving pictures some other way: meanwhile the other modules update once a minute. |
+| `lines = await self.gpio([27], output=True)` | Free GPIO header pins from the mirror: `lines.get(pin)`, `lines.set(pin, 1)`, `async for e in lines.events()`, `lines.close()`. Options: `output`, `initial`, `pull` (`"up"`, `"down"`, `"off"`), `edge` (`"rising"`, `"falling"`, `"both"`), `active_low`, `debounce_ms`. See [part 9](#9-hardware-and-other-modules). |
 
 **`await broadcast_func(self.name, html)`** puts `html` in your module's place on the screen.
 
@@ -894,7 +911,7 @@ logger); without it they wait until the screen is on. See [part 5](#5-fetching-d
 A `router` (FastAPI `APIRouter`) gives your module its own web addresses. See [part 9](#9-hardware-and-other-modules).
 
 `fetch_json` and the component library need MirrorDash 0.5 or newer, `video_window` and
-`video_is_playing` 0.8.0, `router`, `api_path` and `"format": "lan-url"` 0.9.1; `mirrordash-sdk dev-setup` installs
+`video_is_playing` 0.8.0, `router`, `api_path`, `"format": "lan-url"` and `gpio` 0.9.1; `mirrordash-sdk dev-setup` installs
 the right version.
 
 ---
