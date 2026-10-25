@@ -63,6 +63,10 @@ Good to know:
   That's where users change your module's settings.
 - **The component library** is at `http://localhost:8000/design`: every building block you can use for
   the look, with code to copy. More in [part 4](#4-design-the-component-library).
+- **Every part a module can have is already in it**, marked `── <part> ──` in `plugin.py`, `widget.html`
+  and the tests: settings, fetching, saving files, its own web address, messages, GPIO pins and more. The
+  module's `README.md` lists each part's settings and texts. Delete what you don't need; the tutorial
+  below starts over from a small `plugin.py` instead.
 
 ---
 
@@ -544,9 +548,8 @@ It always gives back two things: `data` (the answer) and `error` (what went wron
 - **It waits while the screen is off.** A sleeping mirror calls no APIs: `fetch`/`fetch_json` returns when the
   screen is on again, so a fetch that fell due at night happens once, on waking. A module that must keep
   fetching in the dark (a data logger) sets `keep_running = True` on its class.
-- **Need an API key to start with?** `uvx mirrordash-sdk create-module mirrordash-x --template api`
-  gives you a module that already has an API key setting, example data until a key is entered, and
-  messages for every error.
+- **The module `create-module` makes** already has all of this: an API key setting, example data until a
+  key is entered, and a message for every error.
 
 ---
 

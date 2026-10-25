@@ -8,22 +8,20 @@ from importlib.resources import files
 from pathlib import Path
 from string import Template
 
-TEMPLATES = ("basic", "api")
 TEMPLATES_DIR = files("mirrordash_sdk") / "templates"
 
 
-def _template_files(template: str):
+def _template_files():
     """(relative path, text) for every file of the template, the shared files first."""
-    for part in ("common", template):
+    for part in ("common", "module"):
         root = Path(str(TEMPLATES_DIR / part))
         for file in sorted(root.rglob("*")):
             if file.is_file() and "__pycache__" not in file.parts:
                 yield file.relative_to(root), file.read_text(encoding="utf-8")
 
 
-def create_module(name: str, description: str, author: str, icon: str = None, dry_run: bool = False,
-                  template: str = "basic") -> Path:
-    """Write a new module from a template (mirrordash_sdk/templates/<template>) and return its directory.
+def create_module(name: str, description: str, author: str, icon: str = None, dry_run: bool = False) -> Path:
+    """Write a new module from the template (mirrordash_sdk/templates/common and module) and return its directory.
 
     Files use $folder_name, $package_name, $class_name, $title, $description and $author; a
     directory named __package__ becomes the Python package, and gitignore becomes .gitignore.
@@ -36,9 +34,6 @@ def create_module(name: str, description: str, author: str, icon: str = None, dr
 
     if not re.match(r"^[a-z0-9\-]+$", folder_name):
         print(f"Error: Invalid module name '{name}'. Only letters, digits, hyphens and underscores are allowed.", file=sys.stderr)
-        sys.exit(1)
-    if template not in TEMPLATES:
-        print(f"Error: Unknown template '{template}'. Choose one of: {', '.join(TEMPLATES)}.", file=sys.stderr)
         sys.exit(1)
     if not folder_name.startswith("mirrordash-"):
         print(f"Warning: Module name '{name}' does not start with 'mirrordash-'. "
@@ -63,9 +58,9 @@ def create_module(name: str, description: str, author: str, icon: str = None, dr
     values = {"folder_name": folder_name, "package_name": package_name, "class_name": class_name,
               "title": title, "description": description, "author": author}
     print(f"{'[DRY RUN] Would create' if dry_run else 'Creating'} module '{folder_name}' "
-          f"from the '{template}' template in {target_dir}...")
+          f"in {target_dir}...")
 
-    for relative, text in _template_files(template):
+    for relative, text in _template_files():
         relative = Path(*(package_name if part == "__package__" else ".gitignore" if part == "gitignore" else part
                           for part in relative.parts))
         if relative.name == "icon.svg":

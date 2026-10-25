@@ -7,11 +7,11 @@ This file provides AI coding agents with instructions for creating, modifying, a
 ## 1. Developer Environment & Scaffolding
 
 ### Always Use the CLI Scaffolder
-Never build module packages by hand. Create a module from a template; pick `api` when it fetches data from a web API, `basic` otherwise:
+Never build module packages by hand. Create the module, then delete the parts it doesn't need:
 ```bash
-uvx mirrordash-sdk create-module mirrordash-<name> --template api --description "<description>"
+uvx mirrordash-sdk create-module mirrordash-<name> --description "<description>"
 ```
-This gives the right Hatchling layout, entry point, settings form, translations and tests (`uv run pytest`).
+This gives the right Hatchling layout, entry point, settings form, translations and tests (`uv run pytest`), with every part a module can have, each marked `── <part> ──` in `plugin.py`, `widget.html` and the tests; the module's README lists each part's settings and texts. Delete a part with its settings, texts and tests, and keep the rest as it is written.
 
 ### A Local Mirror
 Inside the module directory, set up a local mirror with the module on it and start it (`http://localhost:8000/`, admin password `mirrordash`):

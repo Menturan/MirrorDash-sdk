@@ -4,5 +4,11 @@
   "key_rejected": "The API key was rejected. Check it in the module's settings.",
   "offline": "Can't reach the service.",
   "fetch_failed": "Couldn't update.",
-  "last_updated": "Last updated {time}."
+  "last_updated": "Last updated {time}.",
+  "minutes_ago": "{n} min ago",
+  "sent": "Sent",
+  "device": "At home",
+  "relay": "Relay",
+  "on": "On",
+  "off": "Off"
 }

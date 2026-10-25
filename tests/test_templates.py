@@ -9,12 +9,11 @@ from click.testing import CliRunner
 from mirrordash_sdk.cli import main
 
 
-@pytest.mark.parametrize("template", ["basic", "api"])
-def test_a_generated_module_passes_its_own_tests_and_the_validator(template, tmp_path, monkeypatch):
+def test_a_generated_module_passes_its_own_tests_and_the_validator(tmp_path, monkeypatch):
     """What a developer gets from create-module works as it is: its tests pass and it validates."""
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
-    result = runner.invoke(main, ["create-module", "mirrordash-demo-widget", "--template", template])
+    result = runner.invoke(main, ["create-module", "mirrordash-demo-widget"])
     assert result.exit_code == 0, result.output
     module = tmp_path / "mirrordash-demo-widget"
 
@@ -44,7 +43,7 @@ def test_quickstart_creates_sets_up_starts_and_opens(tmp_path, monkeypatch):
         result = CliRunner().invoke(main, ["quickstart", "mirrordash-demo"])
     assert result.exit_code == 0, result.output
     module = tmp_path / "mirrordash-demo"
-    assert "fetch_json" in (module / "mirrordash_demo" / "plugin.py").read_text()  # the api template by default
+    assert "fetch_json" in (module / "mirrordash_demo" / "plugin.py").read_text()
     setup.assert_called_once_with(str(module), editable=True)
     browser.assert_called_once()
     start.assert_called_once_with(str(module))
@@ -70,7 +69,7 @@ def test_dev_setup_takes_core_from_github_until_the_needed_version_is_on_pypi(tm
 def test_validate_warns_about_a_key_shown_in_plain_text(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
-    runner.invoke(main, ["create-module", "mirrordash-demo", "--template", "api"])
+    runner.invoke(main, ["create-module", "mirrordash-demo"])
     schema_file = Path("mirrordash-demo/mirrordash_demo/config_schema.json")
     schema = json.loads(schema_file.read_text())
     del schema["properties"]["api_key"]["format"]

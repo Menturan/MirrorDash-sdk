@@ -1,0 +1,61 @@
+{
+  "$$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "$title",
+  "description": "$description",
+  "type": "object",
+  "properties": {
+    "api_key": {
+      "type": "string",
+      "format": "password",
+      "default": "",
+      "title": "API Key",
+      "description": "Your key from the service's website. The module's README says where to get one."
+    },
+    "location": {
+      "type": "string",
+      "default": "Stockholm",
+      "title": "Location",
+      "description": "What to look up."
+    },
+    "interval": {
+      "type": "integer",
+      "default": 600,
+      "title": "Update Interval (Seconds)",
+      "description": "Time between updates. Stay within the service's request limits."
+    },
+    "layout": {
+      "type": "string",
+      "default": "list",
+      "enum": ["list", "grid"],
+      "enum_titles": ["Rows", "Side by side"],
+      "title": "Layout",
+      "description": "How the values are shown."
+    },
+    "show_header": {
+      "type": "boolean",
+      "default": true,
+      "title": "Show Header",
+      "description": "Show or hide the module's title."
+    },
+    "device_url": {
+      "type": "string",
+      "format": "lan-url",
+      "default": "",
+      "title": "Device at Home",
+      "description": "Optional: the address of a device on your home network whose answer is shown, e.g. http://192.168.1.20/status."
+    },
+    "token": {
+      "type": "string",
+      "format": "password",
+      "default": "",
+      "title": "Token",
+      "description": "Optional: lets a phone shortcut or Home Assistant send a value to the module (see its README). Empty: nobody can."
+    },
+    "relay_pin": {
+      "type": "integer",
+      "default": 0,
+      "title": "Relay GPIO Pin",
+      "description": "Optional: the GPIO (BCM) number of a relay that a double press on the mirror's button switches. 0: none."
+    }
+  }
+}

@@ -14,20 +14,15 @@ The module shows example data right away. Change it in `mirrordash-my-widget/mir
 
 **New to this?** The [module guide](https://github.com/Menturan/MirrorDash-sdk/blob/master/MODULE_GUIDE.md) walks you through building a real module step by step, in about half an hour.
 
-## Templates
+## What you get
 
-| Template | For a module that… | |
-| :--- | :--- | :--- |
-| `api` (default for `quickstart`) | fetches data from a web API with an API key and shows a value and a few rows | `--template api` |
-| `basic` | works out what to show by itself, without the internet | `--template basic` |
-
-Both show their data with components from the mirror's component library (`http://localhost:8000/design`), so they need no CSS, and both come with tests (`uv run pytest`).
+A module with every part a module can have, each marked `── <part> ──` in its code, template and tests: settings of every kind, fetching from an API with example data until there's a key, a device on the home network, saving files, its own web address, the mirror's button and public messages to other modules, GPIO pins, and a script that stays calm while a video plays. Its README lists each part's settings and texts: keep what you need, delete the rest. It shows its data with the mirror's component library (`http://localhost:8000/design`), so it needs no CSS, and every part has its tests (`uv run pytest`).
 
 ## Commands
 
 ```bash
-uvx mirrordash-sdk quickstart <name> [-t api|basic]   # everything below in one go
-uvx mirrordash-sdk create-module <name> [-t basic|api] # just create the module
+uvx mirrordash-sdk quickstart <name>                  # everything below in one go
+uvx mirrordash-sdk create-module <name>               # just create the module
 uvx mirrordash-sdk dev-setup -e                        # a local mirror (.venv) with this module on it
 uvx mirrordash-sdk start                               # start the local mirror: http://localhost:8000/
 uvx mirrordash-sdk validate .                          # check the module before you push it
@@ -47,7 +42,7 @@ Push it to GitHub once, then run `uvx mirrordash-sdk release 1.0.0` for every ve
 ## Developing the SDK itself
 
 ```bash
-uv sync && uv run pytest   # the tests also generate every template and run its tests
+uv sync && uv run pytest   # the tests also generate a module and run its tests
 ```
 
 Releases: `python3 scripts/release.py` (try `--dry-run` first). It checks master and the tests, sets the version, pushes and tags `vX.Y.Z`; GitHub Actions then tests, builds and publishes it to PyPI.

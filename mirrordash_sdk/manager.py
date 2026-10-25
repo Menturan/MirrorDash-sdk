@@ -6,8 +6,8 @@ from pathlib import Path
 
 from .validator import validate_module
 
-# The oldest core that has what the module templates use (fetch_json, the layout classes)
-CORE_REQUIREMENT = "mirrordash>=0.5"
+# The oldest core that has what the module template uses (its newest: publish(..., public=True))
+CORE_REQUIREMENT = "mirrordash>=0.9.4"
 CORE_GIT = "git+https://github.com/Menturan/MirrorDash.git"
 DEV_URL = "http://localhost:8000/"
 DEV_PASSWORD = "mirrordash"

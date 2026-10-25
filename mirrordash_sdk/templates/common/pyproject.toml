@@ -6,7 +6,8 @@ requires-python = ">=3.14"
 authors = [
     { name = "$author" }
 ]
-# The mirror provides the rest (rendering, fetch_json/fetch, translations); add only what plugin.py imports
+# The mirror provides the rest (rendering, fetch_json/fetch, translations, fastapi); add only what else
+# plugin.py imports
 dependencies = []
 
 [project.entry-points."mirrordash.modules"]
@@ -16,6 +17,7 @@ $package_name = "$package_name.plugin:$class_name"
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
+    "fastapi>=0.115",  # the mirror's, for the tests of a module with its own web address
 ]
 
 [build-system]
