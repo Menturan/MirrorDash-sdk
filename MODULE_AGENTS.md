@@ -45,7 +45,7 @@ The system runs on a read-only root filesystem in production.
   - `config["cache_dir"]`: temporary data and asset downloads (excluded from backups). `fetch_json` caches its answers here by itself.
 
 ### The Sandbox
-Every instance runs in a process of its own as a user of its own: no `sudo`, no home network except the addresses in `"format": "lan-url"` settings, I²C and SPI but no GPIO chip (`gpiod`, `gpiozero` and `RPi.GPIO` don't work: ask for pins with `await self.gpio([27], output=True)`). The `event_bus` in `config` carries the mirror's hardware messages (`hardware.button`, `hardware.motion`, `hardware.climate`, `hardware.light`, `hardware.fan`); it doesn't reach other modules. A class `router` (FastAPI `APIRouter`) is served at `config["api_path"]` without a login: check a secret yourself. Details: MODULE_GUIDE.md parts 3 and 9.
+Every instance runs in a process of its own as a user of its own: no `sudo`, no home network except the addresses in `"format": "lan-url"` settings, I²C and SPI but no GPIO chip (`gpiod`, `gpiozero` and `RPi.GPIO` don't work: ask for pins with `await self.gpio([27], output=True)`). The `event_bus` in `config` carries the mirror's hardware messages (`hardware.button`, `hardware.motion`, `hardware.climate`, `hardware.light`, `hardware.fan`); a module's own `publish` stays in its instance, unless `public=True`: then every instance gets it, named `<package>.<what>` (others are dropped), JSON up to 64 kB, 20 a second, readable by every module (no secrets). A class `router` (FastAPI `APIRouter`) is served at `config["api_path"]` without a login: check a secret yourself. Details: MODULE_GUIDE.md parts 3 and 9.
 
 ---
 

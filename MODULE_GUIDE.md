@@ -671,6 +671,19 @@ A subscriber can be a normal function or an `async def`.
 | `hardware.light` | `{"lux": 250.0}` | Every 30 s. |
 | `hardware.fan` | `{"level": 2, "max_level": 4, "cpu_temperature_c": 62.5}` | Every 30 s. `level` 0 is off. |
 
+**Messages to other modules.** What your module publishes stays in your module, unless you make it
+public. Then every module can subscribe to it, yours too:
+
+```python
+event_bus.publish("mirrordash_garage.door", {"open": True}, public=True)
+```
+
+- The name starts with your module's package name and a dot (`mirrordash_garage.`), so no module can
+  pass for another or for the hardware. The mirror drops other names and says so in the log.
+- `data` is JSON: a dict, a list, text or numbers, up to 64 kB. Every module can read it, so never put
+  a key or a password in it.
+- Up to 20 a second; more are dropped.
+
 **While a video plays.** A video beside the modules stays smooth only while the rest of the screen
 stands still, because every redraw of the page costs the Raspberry Pi a video frame. So while a module
 plays a video, the mirror updates once a minute, on the minute:
@@ -883,7 +896,7 @@ Errors from your module start with its name, for example `mirrordash.modules.mir
 | `"data_dir"` | A folder for things to keep. See [part 8](#8-saving-files). |
 | `"cache_dir"` | A folder for things that may be thrown away. |
 | `"translations"` | The module's texts in the mirror's language. Usually you use `self.translate` instead. |
-| `"event_bus"` | Messages from the mirror's hardware (buttons, sensors). See [part 9](#9-hardware-video-and-web-addresses). |
+| `"event_bus"` | Messages from the mirror's hardware (buttons, sensors) and other modules' public ones; `publish(name, data, public=True)` sends your own. See [part 9](#9-hardware-video-and-web-addresses). |
 | `"api_path"` | Where your module's `router` is served, `/api/modules/<instance>`. See [part 9](#9-hardware-video-and-web-addresses). |
 
 **On `self`** (added after `__init__`, so use them from `run_loop`):
@@ -905,7 +918,7 @@ logger); without it they wait until the screen is on. See [part 5](#5-fetching-d
 A `router` (FastAPI `APIRouter`) gives your module its own web addresses. See [part 9](#9-hardware-video-and-web-addresses).
 
 `fetch_json` and the component library need MirrorDash 0.5 or newer, `video_window` and
-`video_is_playing` 0.8.0, `router`, `api_path`, `"format": "lan-url"` and `gpio` 0.9.1; `mirrordash-sdk dev-setup` installs
+`video_is_playing` 0.8.0, `router`, `api_path`, `"format": "lan-url"` and `gpio` 0.9.1, `public=True` 0.9.4; `mirrordash-sdk dev-setup` installs
 the right version.
 
 ---
@@ -920,7 +933,7 @@ the right version.
 | **broadcast** | Sending your module's HTML to the screen. |
 | **component library** | `http://localhost:8000/design`: the mirror's building blocks for the look, with code to copy. |
 | **entry point** | A line in `pyproject.toml` that tells the mirror which class is your module. `create-module` writes it. |
-| **event bus** | How the mirror tells your module about its hardware: a button press, a sensor's reading. |
+| **event bus** | How the mirror tells your module about its hardware (a button press, a sensor's reading), and how modules send each other messages. |
 | **header** | Extra information sent with a web request, for example an API key. |
 | **Jinja** | The `{{ ... }}` and `{% ... %}` in templates: they fill in values and repeat or hide parts. |
 | **JSON** | A text format for data: `{"temperature": 21}`. Python reads it as a dictionary. |
