@@ -459,6 +459,11 @@ inside your module). The script runs again each time you broadcast new HTML, so 
 </script>
 ```
 
+Scripts run only in `<script>` tags, never in `onclick=`-style attributes. On a mirror they run only if the
+owner allows them for your module: a script can read what the other modules show, so the admin page asks
+(*Run its scripts on the mirror* in the module's settings). While you develop, they always run. Make your
+card read well without them, or say in your README why it needs them.
+
 ---
 
 ## 5. Fetching data
