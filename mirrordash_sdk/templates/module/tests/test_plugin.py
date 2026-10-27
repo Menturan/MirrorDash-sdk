@@ -78,7 +78,7 @@ async def test_shows_what_the_device_at_home_answers():
     module = make_module(device_url="http://192.168.1.20/status")
     shown = await module.render()
     assert ("At home", "door closed") in shown["data"]["rows"]
-    module.fetch.assert_called_once_with("http://192.168.1.20/status", max_age=600)
+    module.fetch.assert_called_once_with("http://192.168.1.20/status")
 
 
 # ── Your own web address ── and ── Saving files ──
@@ -154,6 +154,10 @@ async def test_home_assistant_switches_the_relay_and_asks_for_an_update():
     module.changed.clear()
     await module.on_control("update", None)
     assert module.changed.is_set()
+    await module.render()  # what the mirror does next: Update now calls even with a young answer
+    assert module.fetch_json.call_args.kwargs["max_age"] == 0
+    await module.render()
+    assert module.fetch_json.call_args.kwargs["max_age"] is None
 
 
 @pytest.mark.asyncio

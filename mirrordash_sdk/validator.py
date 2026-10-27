@@ -114,12 +114,12 @@ def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
             elif class_name:
                 print(f"  [✓] Entrypoint class '{class_name}' exists in plugin.py")
 
-            # Check CancelledError
-            if "CancelledError" not in plugin_content:
+            # Check CancelledError (a module without its own run_loop has nothing to let through)
+            if "def run_loop" in plugin_content and "CancelledError" not in plugin_content:
                 print("  [✗] plugin.py does not appear to catch and re-raise asyncio.CancelledError.")
                 print("      Every MirrorDash module run_loop must handle CancelledError cleanly (Rule #5).")
                 has_errors = True
-            else:
+            elif "def run_loop" in plugin_content:
                 print("  [✓] plugin.py references CancelledError (clean shutdown support)")
 
         # Check config_schema.json or plugin.py config_schema attribute

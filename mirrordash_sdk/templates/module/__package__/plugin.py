@@ -48,12 +48,13 @@ class $class_name:
         self.name = "$package_name"
         self.interval = config.get("interval", 600)
         self.layout = config.get("layout", "list")  # ── Settings ── a dropdown: rows or a grid
-        self.changed = asyncio.Event()  # set: show something new at once, not at the next interval
+        self.changed = asyncio.Event()  # set: render() again at once, not at the next interval
 
         # ── Fetching data ──
         self.api_key = config.get("api_key", "")
         self.location = config.get("location", "")
         self.updated = None  # when the last fetch worked
+        self.update_now = False  # Home Assistant's Update now: the next fetch calls even if the answer is young
 
         # ── Global settings ── the same for every module: language, time zone, units, location
         self.time_format = config.get("globals", {}).get("time_format", "24h")
@@ -83,23 +84,11 @@ class $class_name:
         self.relay_on = False
         self.gpio_error = None
 
-    async def run_loop(self, broadcast_func):
-        """Runs as long as the mirror does: show, wait for the interval or a change, repeat."""
-        await self.take_relay()
-        while True:
-            try:
-                await broadcast_func(self.name, await self.render())
-            except asyncio.CancelledError:
-                raise  # the mirror is stopping this module: let it
-            except Exception as e:
-                logger.error(f"{self.name}: {e}", exc_info=True)
-            try:
-                await asyncio.wait_for(self.changed.wait(), self.interval)
-            except TimeoutError:
-                pass
-            self.changed.clear()
-
     async def render(self) -> str:
+        """The mirror shows what this returns, every interval and at once after self.changed.set(). No loop of
+        your own: write run_loop(self, broadcast_func) only for your own timing (a ticking clock, a stream)."""
+        if self.relay_pin and not self.relay and not self.gpio_error:  # ── GPIO pins of your own ── once
+            await self.take_relay()
         data, message, icon, since = None, None, "cloud-off", None
 
         # ── Fetching data ──
@@ -108,10 +97,11 @@ class $class_name:
             message = self.translate("missing_key", "Example data. Add an API key in the module's settings.")
         else:
             # The key goes in a header, so it never ends up in a log or in a cached URL. On a failure, answer is
-            # the last good one (also after a restart) and error says what went wrong. max_age: an answer younger
-            # than the interval is reused, so saving a setting or a restart makes no call.
+            # the last good one (also after a restart) and error says what went wrong. An answer younger than
+            # the interval is reused, so saving a setting or a restart makes no call; max_age=0 always calls.
             answer, error = await self.fetch_json(URL, headers={"Authorization": f"Bearer {self.api_key}"},
-                                                  params={"q": self.location}, max_age=self.interval)
+                                                  params={"q": self.location}, max_age=0 if self.update_now else None)
+            self.update_now = False
             data = parse(answer) if answer is not None else None
             if not error:
                 self.updated = datetime.now()
@@ -136,7 +126,7 @@ class $class_name:
             rows.append((self.translate("sent", "Sent"), self.state["sent"]))
         # ── A device at home ── self.fetch for an answer that isn't JSON: data is bytes
         if self.device_url:
-            reply, _ = await self.fetch(self.device_url, max_age=self.interval)
+            reply, _ = await self.fetch(self.device_url)
             rows.append((self.translate("device", "At home"), reply.decode(errors="replace").strip()[:40] if reply else "–"))
         # ── GPIO pins of your own ──
         if self.relay:
@@ -200,6 +190,7 @@ class $class_name:
         if name == "relay" and self.relay:  # with GPIO pins of your own
             await self.switch_relay(value)
         elif name == "update":
+            self.update_now = True
             self.changed.set()
 
     # ── GPIO pins of your own ──

@@ -26,11 +26,11 @@ uvx mirrordash-sdk start
 ## 2. Coding Rules for Modules
 
 ### Async & Non-Blocking Loops
-0. **Fetch with `self.fetch_json` / `self.fetch`**: never write your own HTTP code (`requests`, `httpx`, `urllib`, `aiohttp`); `validate` warns about it. `self.fetch_json` for JSON answers, `self.fetch` (bytes) for everything else (RSS, ICS, XML). Both take `headers=`, `params=`, `method=`, `json=`, `data=`, `timeout=` and return `(data, error)`: they have a timeout, don't block, pause while the screen is off, and on a failure return the last good answer with `error` set (`rejected`, `offline`, `http <code>`, `invalid`). Put API keys in `headers` or the body, never in the URL. Pass `max_age=self.interval`, so a restart (every saved setting) reuses a young answer instead of calling again. Never put the render time in the HTML: identical HTML isn't redrawn, changing HTML is. Show `data` when there is any and a `.module-message` when `error` is set. In tests: `module.fetch_json = AsyncMock(return_value=(data, None))`.
-1. **Never block the event loop**: The module's `run_loop` is an async task. Do not use blocking operations (like `requests`, `urllib.request.urlopen`, or `time.sleep()`).
+0. **Fetch with `self.fetch_json` / `self.fetch`**: never write your own HTTP code (`requests`, `httpx`, `urllib`, `aiohttp`); `validate` warns about it. `self.fetch_json` for JSON answers, `self.fetch` (bytes) for everything else (RSS, ICS, XML). Both take `headers=`, `params=`, `method=`, `json=`, `data=`, `timeout=` and return `(data, error)`: they have a timeout, don't block, pause while the screen is off, and on a failure return the last good answer with `error` set (`rejected`, `offline`, `http <code>`, `invalid`). Put API keys in `headers` or the body, never in the URL. An answer younger than `self.interval` is reused, so a restart (every saved setting) doesn't call again; pass `max_age=0` where a call must happen (an *Update now*). Never put the render time in the HTML: identical HTML isn't redrawn, changing HTML is. Show `data` when there is any and a `.module-message` when `error` is set. In tests: `module.fetch_json = AsyncMock(return_value=(data, None))`.
+1. **Never block the event loop**: `render()` (and a module's own `run_loop`) run on the mirror's event loop. Do not use blocking operations (like `requests`, `urllib.request.urlopen`, or `time.sleep()`).
 2. **Wrap Synchronous I/O**: Use `await asyncio.to_thread(sync_func, ...)` to offload synchronous network or disk reads.
-3. **Use Async Sleeps**: Sleep only with `await asyncio.sleep(self.interval)`.
-4. **Handle Shutdown Cleanly**: Always catch and re-raise `asyncio.CancelledError` to allow graceful stops:
+3. **No loop unless you need one**: a module with `async def render()` and no `run_loop` is shown every `self.interval` seconds and at once after `self.changed.set()`. Write `run_loop` only for your own timing (a ticking clock, a stream, a time of day), and sleep there only with `await asyncio.sleep(...)`.
+4. **Handle Shutdown Cleanly**: in your own `run_loop`, catch and re-raise `asyncio.CancelledError` to allow graceful stops:
    ```python
    except asyncio.CancelledError:
        # perform cleanup...
@@ -103,7 +103,7 @@ Provide a `config_schema.json` next to `plugin.py` to allow the user to modify s
 - API keys, tokens and passwords get `"format": "password"`, so the admin page hides what is typed (`mirrordash-sdk validate` warns otherwise).
 - An address on the home network (Home Assistant, a device) gets `"format": "lan-url"`: the module runs sandboxed and reaches the home network only at such addresses.
 - Don't declare `enabled`, `position`, `carousel_group`, `carousel_interval`, `max_width`, `max_height`, `z_index` or `opacity`: the core adds them to every module.
-- `self.render_template` / `self.translate` don't exist yet inside `__init__`; use them from `run_loop`.
+- `self.render_template` / `self.translate` don't exist yet inside `__init__`; use them from `render` or `run_loop`.
 
 ---
 

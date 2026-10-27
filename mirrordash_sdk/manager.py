@@ -7,7 +7,7 @@ from pathlib import Path
 from .validator import validate_module
 
 # The oldest core that has what the module template uses (its newest: exposes, expose and on_control)
-CORE_REQUIREMENT = "mirrordash>=0.10.0rc1"
+CORE_REQUIREMENT = "mirrordash>=0.10.0rc2"  # rc2: a module with only render() needs no run_loop
 CORE_GIT = "git+https://github.com/Menturan/MirrorDash.git"
 DEV_URL = "http://localhost:8000/"
 DEV_PASSWORD = "mirrordash"

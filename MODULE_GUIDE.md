@@ -99,11 +99,6 @@ The example data comes from `plugin.py`. Now it should fetch real weather from
 in `mirrordash_outside/plugin.py` with:
 
 ```python
-import asyncio
-import logging
-
-logger = logging.getLogger("mirrordash.modules.mirrordash_outside")
-
 # Open-Meteo: free weather data, no API key needed (https://open-meteo.com)
 URL = "https://api.open-meteo.com/v1/forecast"
 
@@ -127,23 +122,12 @@ class OutsideModule:
         self.latitude = config.get("globals", {}).get("latitude", 59.33)
         self.longitude = config.get("globals", {}).get("longitude", 18.07)
 
-    async def run_loop(self, broadcast_func):
-        """Runs as long as the mirror does: fetch, show, wait, repeat."""
-        while True:
-            try:
-                await broadcast_func(self.name, await self.render())
-            except asyncio.CancelledError:
-                raise  # the mirror is stopping this module: let it
-            except Exception as e:
-                logger.error(f"{self.name}: {e}", exc_info=True)
-            await asyncio.sleep(self.interval)
-
     async def render(self) -> str:
         data, error = await self.fetch_json(URL, params={
             "latitude": self.latitude,
             "longitude": self.longitude,
             "current": "temperature_2m,wind_speed_10m,relative_humidity_2m",
-        }, max_age=self.interval)
+        })
         message = self.translate("fetch_failed", "Couldn't update.") if error else None
         shown = parse(data, self.show_wind) if data else None
         return self.render_template("widget.html", data=shown, message=message, icon="cloud-off")
@@ -153,10 +137,11 @@ What it does, from the bottom up:
 
 - `render()` asks Open-Meteo for the current weather with `self.fetch_json` (a helper the mirror gives
   every module, see [part 5](#5-fetching-data)), turns the answer into what to show with `parse()`, and
-  fills in `templates/widget.html` with it. `max_age` reuses an answer younger than the interval, so a
-  restart doesn't ask Open-Meteo again.
-- `run_loop()` runs as long as the mirror does: it shows the result, waits `interval` seconds (600 = 10
-  minutes), and starts over. `broadcast_func` is how you send the result to the screen.
+  fills in `templates/widget.html` with it. An answer younger than `interval` is reused, so a restart
+  doesn't ask Open-Meteo again.
+- There is no loop to write: the mirror calls `render()`, shows what it returns, waits `interval` seconds
+  (600 = 10 minutes) and starts over. If `render()` fails, the error is logged and it's tried again at the
+  next round.
 - `__init__()` reads the module's settings from `config`. The mirror's own location (latitude and
   longitude) comes from the mirror's global settings.
 
@@ -361,24 +346,28 @@ mirrordash-outside/                  the module's folder (and later its GitHub r
    for you).
 2. It creates your class: `OutsideModule(config)`. `config` holds the module's settings.
 3. It gives the object a few helpers: `self.render_template`, `self.translate`, `self.fetch_json` and `self.fetch`.
-   They don't exist yet inside `__init__`, so use them from `run_loop`.
-4. It starts `run_loop(broadcast_func)`, which runs as long as the mirror does. Each time it has
-   something new to show, it calls `await broadcast_func(self.name, html)`.
+   They don't exist yet inside `__init__`, so use them from `render`.
+4. It calls `await render()` and shows the HTML it returns, then again every `interval` seconds, and at
+   once when something calls `self.changed.set()` (a button, a value sent to the module).
+
+**Your own loop:** a module that keeps its own time (a clock that ticks, a stream, a time of day) writes
+`async def run_loop(self, broadcast_func)` instead. The mirror then runs only that, as long as the mirror
+does; it sends HTML with `await broadcast_func(self.name, html)`. A module without `run_loop` needs
+MirrorDash 0.10 or newer.
 
 **`async` and `await`:** the mirror runs all modules at the same time. `async def` marks a function that
 can wait without blocking the others, and `await` is where it waits: for data (`await self.fetch_json(...)`),
 for the screen (`await broadcast_func(...)`) or for time (`await asyncio.sleep(...)`). Never use
 `time.sleep()` or `requests`: they block the whole mirror.
 
-**When `run_loop` stops and starts again:**
+**When your module stops and starts again:**
 
 - When the user changes one of your module's settings, the mirror stops your module and creates it again
   with the new settings. That's why you read settings in `__init__`. Moving it on the screen restarts
   nothing.
-- If `run_loop` crashes, the mirror logs the error and starts it again after 5 seconds, then 10, 20 and
-  so on, at most every 5 minutes. Catch errors inside the loop (as the tutorial does) so one bad answer
-  doesn't stop the module.
-- When the mirror stops, `run_loop` gets an `asyncio.CancelledError`. Let it through with
+- With your own `run_loop`: if it crashes, the mirror logs the error and starts it again after 5 seconds,
+  then 10, 20 and so on, at most every 5 minutes. Catch errors inside the loop so one bad answer doesn't
+  stop the module. When the mirror stops, `run_loop` gets an `asyncio.CancelledError`. Let it through with
   `except asyncio.CancelledError: raise` (`mirrordash-sdk validate` checks for it).
 
 **Where your module runs:** apart from MirrorDash, in a sandbox: each copy of your module in a process of
@@ -499,7 +488,7 @@ Both take the same arguments, with the same names as in `requests`:
 | `json={...}` | A JSON body (sets `Content-Type: application/json`). |
 | `data={...}` | A form body; or `data=b"..."` sent as it is. Not together with `json`. |
 | `timeout=10` | Seconds before it gives up with `"offline"`. |
-| `max_age=600` | Reuse a saved answer younger than this many seconds, without a call. |
+| `max_age=600` | Reuse a saved answer younger than this many seconds, without a call. Left out: the module's `interval`. `0`: always call. |
 
 ```python
 # A GraphQL API (they read with POST)
@@ -527,9 +516,10 @@ It always gives back two things: `data` (the answer) and `error` (what went wron
   `X-Api-Key`, …). Let the user enter the key as a setting (see [part 6](#6-settings)).
 - **No retries:** a failed fetch is simply tried again at the next `interval`. Keep the interval within
   what the service allows; free APIs often allow a request every few minutes.
-- **Pass `max_age=self.interval`.** The mirror restarts every module when a setting is saved, and after an
-  update or a reboot; without `max_age` each restart calls the API again. With it, an answer younger than
-  the interval is reused (`error` is `None`), so the module keeps to its schedule. After a restart the next
+- **A restart doesn't call again.** The mirror restarts every module when a setting is saved, and after an
+  update or a reboot. An answer younger than `self.interval` is reused (`error` is `None`), so the module
+  keeps to its schedule, a paid API too. Pass `max_age` for another limit, and `max_age=0` where a call
+  must happen (an *Update now* button). After a restart the next
   call can come up to two intervals after the last one, once.
 - **At a time of day** (a lunch menu at 10:30): sleep until the next 10:30, and let `max_age` be the time
   since the last one, so an answer from after it is reused and an older one is fetched:
@@ -944,7 +934,7 @@ Errors from your module start with its name, for example `mirrordash.modules.mir
 | `"event_bus"` | Messages from the mirror's hardware (buttons, sensors) and other modules' public ones; `publish(name, data, public=True)` sends your own. See [part 9](#9-hardware-video-web-addresses-and-home-assistant). |
 | `"api_path"` | Where your module's `router` is served, `/api/modules/<instance>`. See [part 9](#9-hardware-video-web-addresses-and-home-assistant). |
 
-**On `self`** (added after `__init__`, so use them from `run_loop`):
+**On `self`** (added after `__init__`, so use them from `render` or `run_loop`):
 
 | Helper | What it does |
 | :--- | :--- |
