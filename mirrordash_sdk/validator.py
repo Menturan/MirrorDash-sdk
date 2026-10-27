@@ -166,6 +166,29 @@ def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
                 print(f"  [!] Warning: these settings look secret but show in plain text: {unmasked}")
                 print('      Add "format": "password" to each so the admin page hides what is typed.')
                 has_warnings = True
+            # What the module shows in Home Assistant (MQTT): read by the core's own rules, which leave out
+            # what they don't take (MirrorDash 0.9.6 or newer)
+            exposes = schema_data.get("exposes")
+            if exposes is not None:
+                try:
+                    from mirrordash_core.features.mqtt.bridge import declarations
+                except ImportError:
+                    declarations = None
+                if not isinstance(exposes, dict):
+                    print('  [✗] "exposes" must be an object: {"name": {"type": "sensor"}, …}')
+                    has_errors = True
+                elif declarations:
+                    taken = declarations(schema_data)
+                    if dropped := sorted(set(exposes) - set(taken)):
+                        print(f"  [!] Warning: the mirror leaves these out of \"exposes\": {dropped}")
+                        print("      Check the name (letters, digits, - and _), the type and its options (MODULE_GUIDE part 9).")
+                        has_warnings = True
+                    controlled = [n for n, e in taken.items() if e["control"]]
+                    if controlled and "on_control" not in plugin_content:
+                        print(f"  [!] Warning: {controlled} can be controlled, but plugin.py has no on_control(name, value)")
+                        has_warnings = True
+                    if taken and not dropped:
+                        print(f"  [✓] exposes {len(taken)} entit{'y' if len(taken) == 1 else 'ies'} to Home Assistant")
 
         # Check templates/widget.html
         templates_dir = package_dir / "templates"

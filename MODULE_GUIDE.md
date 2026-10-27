@@ -22,7 +22,7 @@ For sharing your module at the end, you also need a GitHub account. Words in *it
 6. [Settings](#6-settings)
 7. [Translations](#7-translations)
 8. [Saving files](#8-saving-files)
-9. [Hardware, video and web addresses](#9-hardware-video-and-web-addresses)
+9. [Hardware, video, web addresses and Home Assistant](#9-hardware-video-web-addresses-and-home-assistant)
 10. [Testing](#10-testing)
 11. [Sharing your module](#11-sharing-your-module)
 12. [Troubleshooting](#12-troubleshooting)
@@ -389,7 +389,7 @@ its own, as a user of its own. On a mirror that means:
 - It writes only in its `data_dir` and `cache_dir` (see [part 8](#8-saving-files)). It can't read
   MirrorDash's settings, passwords or logins, nor another module's settings or files, and it has no `sudo`.
 - It can use **I²C and SPI**, and the free **GPIO** pins it asks the mirror for with `self.gpio` (see
-  [part 9](#9-hardware-video-and-web-addresses)), but not the camera or the sound.
+  [part 9](#9-hardware-video-web-addresses-and-home-assistant)), but not the camera or the sound.
 - The mirror never runs your code to show the admin page: it reads `config_schema.json`, `icon.svg` and
   `translations/` as files. A schema written in the Python class isn't read.
 
@@ -652,7 +652,7 @@ Each copy of your module (a user can add the same module twice) gets its own fol
 
 ---
 
-## 9. Hardware, video and web addresses
+## 9. Hardware, video, web addresses and Home Assistant
 
 **Hardware messages.** When the user connected a button or a sensor under **Admin → Hardware → Sensors &
 Inputs**, the mirror sends a message for it on the *event bus*. You get the bus in `config`; subscribe in
@@ -793,6 +793,41 @@ mirror, and asking for them raises `RuntimeError` with the reason. The lines are
 `close()` (or `with` the object) or the module stops. I²C and SPI devices you open yourself
 (`/dev/i2c-*`, `/dev/spidev*`).
 
+**Home Assistant (MQTT).** A module can show values in Home Assistant, and take commands from it, through
+the mirror's MQTT connection. Declare them in `config_schema.json`, next to `properties`:
+
+```json
+"exposes": {
+  "now_playing": {"type": "sensor", "title": "Now playing"},
+  "channel":     {"type": "select", "title": "Channel", "options": ["SVT1", "SVT2"], "control": true},
+  "play_url":    {"type": "text", "title": "Play address", "format": "url", "maxLength": 255, "control": true},
+  "volume":      {"type": "number", "min": 0, "max": 100, "step": 1, "control": true},
+  "stop":        {"type": "button", "control": true},
+  "doorbell":    {"type": "event", "event_types": ["ring"]}
+}
+```
+
+Types: `sensor` (`unit`, `device_class`), `binary_sensor`, `event` (`event_types`), and the ones that take
+commands with `"control": true`: `text` (`maxLength` at most 255, `"format": "url"` for http(s) addresses only),
+`select` (`options`), `number` (`min`, `max`, `step`), `button` and `switch`. Names are letters, digits, `-`
+and `_`; at most 32 entries. Send a value with `await self.expose(name, value)` (a string or number, `True`/`False`
+for a binary_sensor or switch, one of `event_types` for an event); commands come to your class:
+
+```python
+    async def on_control(self, name, value):
+        if name == "channel":
+            await self.tune(value)        # one of your options, already checked
+        elif name == "stop":              # a button: value is None
+            await self.stop()
+```
+
+Nothing is shown until the owner turns it on for your module's instance (**Admin → Settings → MQTT**), and a
+command reaches you only for what you declared with `control` and the owner allowed, with a value the
+mirror already checked against your declaration. You never see the broker, its password, or who sent a
+command (MQTT can't tell), so a command must never do more than its declaration says: a `play_url` plays
+an address, it doesn't fetch it for anyone or run it. `mirrordash-sdk validate` warns about an entry the
+mirror would leave out.
+
 ---
 
 ## 10. Testing
@@ -904,8 +939,8 @@ Errors from your module start with its name, for example `mirrordash.modules.mir
 | `"data_dir"` | A folder for things to keep. See [part 8](#8-saving-files). |
 | `"cache_dir"` | A folder for things that may be thrown away. |
 | `"translations"` | The module's texts in the mirror's language. Usually you use `self.translate` instead. |
-| `"event_bus"` | Messages from the mirror's hardware (buttons, sensors) and other modules' public ones; `publish(name, data, public=True)` sends your own. See [part 9](#9-hardware-video-and-web-addresses). |
-| `"api_path"` | Where your module's `router` is served, `/api/modules/<instance>`. See [part 9](#9-hardware-video-and-web-addresses). |
+| `"event_bus"` | Messages from the mirror's hardware (buttons, sensors) and other modules' public ones; `publish(name, data, public=True)` sends your own. See [part 9](#9-hardware-video-web-addresses-and-home-assistant). |
+| `"api_path"` | Where your module's `router` is served, `/api/modules/<instance>`. See [part 9](#9-hardware-video-web-addresses-and-home-assistant). |
 
 **On `self`** (added after `__init__`, so use them from `run_loop`):
 
@@ -915,18 +950,21 @@ Errors from your module start with its name, for example `mirrordash.modules.mir
 | `self.translate("key", "default")` | A text from `translations/`. |
 | `await self.fetch_json(url, headers=…, params=…, timeout=10, max_age=…)` | Fetches JSON; gives back `(data, error)`. See [part 5](#5-fetching-data). |
 | `await self.fetch(url, …)` | The same for anything that isn't JSON (RSS, ICS, XML); `data` is bytes. |
-| `async with self.video_window(fullscreen=False, hz=None) as window:` | Places your player's window (app id `window.app_id`) over the card's `data-video-window` element, or fullscreen. See [part 9](#9-hardware-video-and-web-addresses). |
+| `async with self.video_window(fullscreen=False, hz=None) as window:` | Places your player's window (app id `window.app_id`) over the card's `data-video-window` element, or fullscreen. See [part 9](#9-hardware-video-web-addresses-and-home-assistant). |
 | `async with self.video_is_playing():` | For a module that shows moving pictures some other way: meanwhile the other modules update once a minute. |
-| `lines = await self.gpio([27], output=True)` | Free GPIO header pins from the mirror: `lines.get(pin)`, `lines.set(pin, 1)`, `async for e in lines.events()`, `lines.close()`. Options: `output`, `initial`, `pull` (`"up"`, `"down"`, `"off"`), `edge` (`"rising"`, `"falling"`, `"both"`), `active_low`, `debounce_ms`. See [part 9](#9-hardware-video-and-web-addresses). |
+| `await self.expose("now_playing", value)` | A value of something `config_schema.json`'s `"exposes"` declares, in Home Assistant if the owner shares it. Commands come to your `on_control(name, value)`. See [part 9](#9-hardware-video-web-addresses-and-home-assistant). |
+| `lines = await self.gpio([27], output=True)` | Free GPIO header pins from the mirror: `lines.get(pin)`, `lines.set(pin, 1)`, `async for e in lines.events()`, `lines.close()`. Options: `output`, `initial`, `pull` (`"up"`, `"down"`, `"off"`), `edge` (`"rising"`, `"falling"`, `"both"`), `active_low`, `debounce_ms`. See [part 9](#9-hardware-video-web-addresses-and-home-assistant). |
 
 **`await broadcast_func(self.name, html)`** puts `html` in your module's place on the screen.
 
 **On your class:** `keep_running = True` keeps `fetch`/`fetch_json` going while the screen is off (a data
 logger); without it they wait until the screen is on. See [part 5](#5-fetching-data).
-A `router` (FastAPI `APIRouter`) gives your module its own web addresses. See [part 9](#9-hardware-video-and-web-addresses).
+A `router` (FastAPI `APIRouter`) gives your module its own web addresses. See [part 9](#9-hardware-video-web-addresses-and-home-assistant).
+`async def on_control(self, name, value)` gets Home Assistant's commands for what you expose. See [part 9](#9-hardware-video-web-addresses-and-home-assistant).
 
 `fetch_json` and the component library need MirrorDash 0.5 or newer, `video_window` and
-`video_is_playing` 0.8.0, `router`, `api_path`, `"format": "lan-url"` and `gpio` 0.9.1, `public=True` 0.9.4; `mirrordash-sdk dev-setup` installs
+`video_is_playing` 0.8.0, `router`, `api_path`, `"format": "lan-url"` and `gpio` 0.9.1, `public=True` 0.9.4,
+`exposes`, `expose` and `on_control` 0.9.6; `mirrordash-sdk dev-setup` installs
 the right version.
 
 ---
