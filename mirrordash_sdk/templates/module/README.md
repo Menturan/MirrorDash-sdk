@@ -36,6 +36,7 @@ This module shows every part a module can have, each marked `── <part> ─�
 | Your own web address | `POST …/value`, only with the token | `token` | `sent` |
 | Messages | Hears the mirror's button; publishes its value for other modules (`public=True`) | | |
 | GPIO pins of your own | Switches a relay on a double press of the button | `relay_pin` | `relay`, `on`, `off` |
+| Home Assistant (MQTT) | Shows the value and the relay in Home Assistant, which may switch the relay or ask for an update, once the owner shares the module (MirrorDash 0.10) | `exposes` | |
 | Fetching in the dark | `keep_running`: fetch while the screen is off too | | |
 | Your own CSS and script | The "… min ago" line, calm while a video plays | | `minutes_ago` |
 

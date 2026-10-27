@@ -167,7 +167,7 @@ def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
                 print('      Add "format": "password" to each so the admin page hides what is typed.')
                 has_warnings = True
             # What the module shows in Home Assistant (MQTT): read by the core's own rules, which leave out
-            # what they don't take (MirrorDash 0.9.6 or newer)
+            # what they don't take (MirrorDash 0.10.0 or newer)
             exposes = schema_data.get("exposes")
             if exposes is not None:
                 try:

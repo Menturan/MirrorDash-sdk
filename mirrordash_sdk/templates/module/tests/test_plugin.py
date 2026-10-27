@@ -20,6 +20,7 @@ def make_module(tmp_path=None, **settings):
     module.fetch_json = AsyncMock(return_value=({"value": 21, "min": 18, "max": 24}, None))
     module.fetch = AsyncMock(return_value=(b"door closed\n", None))
     module.gpio = AsyncMock(return_value=MagicMock())  # the lines it hands out: .set(pin, value), .get(pin)
+    module.expose = AsyncMock()  # Home Assistant (MQTT)
     return module
 
 
@@ -130,3 +131,34 @@ async def test_a_pin_it_cant_have_says_why():
     module.gpio.side_effect = RuntimeError("No GPIO 2: the I²C sensor uses it")
     await module.take_relay()
     assert (await module.render())["message"] == "No GPIO 2: the I²C sensor uses it"
+
+
+# ── Home Assistant (MQTT) ──
+
+@pytest.mark.asyncio
+async def test_home_assistant_sees_the_value_and_the_relay():
+    module = make_module(relay_pin=27)
+    await module.take_relay()
+    await module.render()
+    module.expose.assert_any_await("relay", False)
+    module.expose.assert_any_await("value", 21)
+
+
+@pytest.mark.asyncio
+async def test_home_assistant_switches_the_relay_and_asks_for_an_update():
+    module = make_module(relay_pin=27)
+    await module.take_relay()
+    await module.on_control("relay", True)  # what the mirror sends: checked against config_schema.json's "exposes"
+    module.relay.set.assert_called_once_with(27, 1)
+    module.expose.assert_awaited_with("relay", True)
+    module.changed.clear()
+    await module.on_control("update", None)
+    assert module.changed.is_set()
+
+
+@pytest.mark.asyncio
+async def test_a_mirror_before_mqtt_has_no_expose_and_nothing_breaks():
+    module = make_module(relay_pin=27)
+    del module.expose
+    await module.take_relay()
+    await module.render()

@@ -57,5 +57,10 @@
       "title": "Relay GPIO Pin",
       "description": "Optional: the GPIO (BCM) number of a relay that a double press on the mirror's button switches. 0: none."
     }
+  },
+  "exposes": {
+    "value": {"type": "sensor", "title": "Value"},
+    "relay": {"type": "switch", "title": "Relay", "control": true},
+    "update": {"type": "button", "title": "Update now", "control": true}
   }
 }

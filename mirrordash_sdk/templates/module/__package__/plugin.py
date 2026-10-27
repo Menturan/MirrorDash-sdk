@@ -42,7 +42,7 @@ class $class_name:
 
     def __init__(self, config):
         # config: this module's settings from the admin page (config_schema.json), plus what the mirror adds.
-        # The mirror's helpers (self.render_template, self.translate, self.fetch_json, self.fetch, self.gpio)
+        # The mirror's helpers (self.render_template, self.translate, self.fetch_json, self.fetch, self.gpio, self.expose)
         # are added after __init__: use them from run_loop.
         self.config = config
         self.name = "$package_name"
@@ -118,6 +118,8 @@ class $class_name:
                 # ── Messages ── a public one: every module can subscribe to "$package_name.value"
                 if self.event_bus:
                     self.event_bus.publish(f"{self.name}.value", data["value"], public=True)
+                # ── Home Assistant (MQTT) ── the value as a sensor there
+                await self.share("value", data["value"])
             else:
                 key, text = ERRORS.get(error, ("fetch_failed", "Couldn't update."))
                 message = self.translate(key, text)
@@ -183,8 +185,21 @@ class $class_name:
         """A press on the mirror's button (what the owner set it to do has happened already): a double press
         switches the relay."""
         if self.relay and data.get("press") == "double":
-            self.relay_on = not self.relay_on
-            self.relay.set(self.relay_pin, int(self.relay_on))
+            await self.switch_relay(not self.relay_on)
+
+    # ── Home Assistant (MQTT) ── what config_schema.json's "exposes" declares, once the owner shares this module
+    # (Admin → Settings → MQTT): Home Assistant shows the value and the relay, and may switch it or ask for an update
+    async def share(self, name: str, value):
+        """A value of something "exposes" declares. A mirror before MirrorDash 0.10 has no self.expose: nothing then."""
+        if hasattr(self, "expose"):
+            await self.expose(name, value)
+
+    async def on_control(self, name: str, value):
+        """A command from Home Assistant, only for what "exposes" marks "control" and the owner allowed, its value
+        already checked against the declaration: True/False for the relay (a switch), None for a button."""
+        if name == "relay" and self.relay:  # with GPIO pins of your own
+            await self.switch_relay(value)
+        elif name == "update":
             self.changed.set()
 
     # ── GPIO pins of your own ──
@@ -193,5 +208,13 @@ class $class_name:
         if self.relay_pin:
             try:
                 self.relay = await self.gpio([self.relay_pin], output=True)
+                await self.share("relay", self.relay_on)  # ── Home Assistant (MQTT) ──
             except RuntimeError as e:
                 self.gpio_error = str(e)
+
+    async def switch_relay(self, on: bool):
+        """The relay on or off: from the mirror's button, or from Home Assistant."""
+        self.relay_on = on
+        self.relay.set(self.relay_pin, int(on))
+        await self.share("relay", on)  # ── Home Assistant (MQTT) ──
+        self.changed.set()

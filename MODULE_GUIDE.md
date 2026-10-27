@@ -826,7 +826,9 @@ command reaches you only for what you declared with `control` and the owner allo
 mirror already checked against your declaration. You never see the broker, its password, or who sent a
 command (MQTT can't tell), so a command must never do more than its declaration says: a `play_url` plays
 an address, it doesn't fetch it for anyone or run it. `mirrordash-sdk validate` warns about an entry the
-mirror would leave out.
+mirror would leave out. A new module has all of it in its `── Home Assistant (MQTT) ──` part: the fetched value
+as a sensor, the relay as a switch and an *Update now* button, with their tests; it checks
+`hasattr(self, "expose")` so it still runs on a mirror before 0.10.0.
 
 ---
 
@@ -964,7 +966,7 @@ A `router` (FastAPI `APIRouter`) gives your module its own web addresses. See [p
 
 `fetch_json` and the component library need MirrorDash 0.5 or newer, `video_window` and
 `video_is_playing` 0.8.0, `router`, `api_path`, `"format": "lan-url"` and `gpio` 0.9.1, `public=True` 0.9.4,
-`exposes`, `expose` and `on_control` 0.9.6; `mirrordash-sdk dev-setup` installs
+`exposes`, `expose` and `on_control` 0.10.0; `mirrordash-sdk dev-setup` installs
 the right version.
 
 ---
