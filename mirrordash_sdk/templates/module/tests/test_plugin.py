@@ -9,6 +9,11 @@ from $package_name.plugin import $class_name
 # Each test is marked with the part of plugin.py it checks: delete it with that part.
 
 
+class Answer(tuple):
+    """What the mirror's fetch_json gives: (data, error), and .fetched_at, when the data was downloaded."""
+    fetched_at = datetime(2026, 1, 1, 9, 30)
+
+
 def make_module(tmp_path=None, **settings):
     """The module as the mirror sets it up, with the mirror's helpers replaced by fakes."""
     config = {"api_key": "my-key", "location": "Oslo", **settings}
@@ -17,7 +22,7 @@ def make_module(tmp_path=None, **settings):
     module = $class_name(config)
     module.render_template = MagicMock(side_effect=lambda name, **context: context)  # returns what the template gets
     module.translate = lambda key, default=None: default
-    module.fetch_json = AsyncMock(return_value=({"value": 21, "min": 18, "max": 24}, None))
+    module.fetch_json = AsyncMock(return_value=Answer(({"value": 21, "min": 18, "max": 24}, None)))
     module.fetch = AsyncMock(return_value=(b"door closed\n", None))
     module.gpio = AsyncMock(return_value=MagicMock())  # the lines it hands out: .set(pin, value), .get(pin)
     module.expose = AsyncMock()  # Home Assistant (MQTT)
@@ -49,16 +54,16 @@ async def test_shows_the_answer_and_sends_the_key_in_a_header():
 async def test_a_failed_update_keeps_the_last_answer_and_says_so():
     module = make_module()
     await module.render()
-    module.fetch_json.return_value = ({"value": 21}, "offline")  # fetch_json hands back the last answer
+    module.fetch_json.return_value = Answer(({"value": 21}, "offline"))  # fetch_json hands back the last answer
     shown = await module.render()
     assert shown["data"]["value"] == 21
-    assert "Last updated" in shown["message"]
+    assert "Last updated 09:30" in shown["message"]  # when the data was downloaded, not now
 
 
 @pytest.mark.asyncio
 async def test_a_rejected_key_says_so():
     module = make_module()
-    module.fetch_json.return_value = (None, "rejected")
+    module.fetch_json.return_value = Answer((None, "rejected"))
     shown = await module.render()
     assert shown["data"] is None
     assert "rejected" in shown["message"]

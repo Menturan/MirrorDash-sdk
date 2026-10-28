@@ -53,7 +53,6 @@ class $class_name:
         # ── Fetching data ──
         self.api_key = config.get("api_key", "")
         self.location = config.get("location", "")
-        self.updated = None  # when the last fetch worked
         self.update_now = False  # Home Assistant's Update now: the next fetch calls even if the answer is young
 
         # ── Global settings ── the same for every module: language, time zone, units, location
@@ -99,12 +98,13 @@ class $class_name:
             # The key goes in a header, so it never ends up in a log or in a cached URL. On a failure, answer is
             # the last good one (also after a restart) and error says what went wrong. An answer younger than
             # the interval is reused, so saving a setting or a restart makes no call; max_age=0 always calls.
-            answer, error = await self.fetch_json(URL, headers={"Authorization": f"Bearer {self.api_key}"},
-                                                  params={"q": self.location}, max_age=0 if self.update_now else None)
+            reply = await self.fetch_json(URL, headers={"Authorization": f"Bearer {self.api_key}"},
+                                          params={"q": self.location}, max_age=0 if self.update_now else None)
             self.update_now = False
+            answer, error = reply
+            updated = reply.fetched_at  # when the data was downloaded, also for a saved answer; None without data
             data = parse(answer) if answer is not None else None
             if not error:
-                self.updated = datetime.now()
                 # ── Messages ── a public one: every module can subscribe to "$package_name.value"
                 if self.event_bus:
                     self.event_bus.publish(f"{self.name}.value", data["value"], public=True)
@@ -114,11 +114,11 @@ class $class_name:
                 key, text = ERRORS.get(error, ("fetch_failed", "Couldn't update."))
                 message = self.translate(key, text)
                 icon = "key-round" if error == "rejected" else "cloud-off"
-                if data and self.updated:
+                if data and updated:
                     message += " " + self.translate("last_updated", "Last updated {time}.").format(
-                        time=self.clock(self.updated))
-            if data and self.updated:
-                since = int(self.updated.timestamp() * 1000)  # the data's time, for the card's script
+                        time=self.clock(updated))
+            if data and updated:
+                since = int(updated.timestamp() * 1000)  # the data's time, for the card's script
 
         rows = []
         # ── Your own web address ── the last value sent to it, kept in data_dir

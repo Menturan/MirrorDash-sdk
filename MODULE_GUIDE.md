@@ -537,7 +537,12 @@ It always gives back two things: `data` (the answer) and `error` (what went wron
   ```
 - **The same HTML isn't sent twice:** the screen only redraws a module when its HTML changes. So don't
   put the time of rendering in it ("updated 10:42"): then it changes every time, and the module redraws
-  (restarting its icons and scrolling) on every round. The time of the data is fine.
+  (restarting its icons and scrolling) on every round. The time of the data is fine, and the answer has it:
+  ```python
+  answer = await self.fetch_json(URL)
+  data, error = answer
+  answer.fetched_at  # when the data was downloaded (a datetime), also for a saved answer; None without data
+  ```
 - **The last good answer is per request:** the same URL with another method or body (two GraphQL queries)
   has its own.
 - **It waits while the screen is off.** A sleeping mirror calls no APIs: `fetch`/`fetch_json` returns when the
@@ -860,7 +865,8 @@ A module is shared through GitHub. Every mirror can install it from there, and f
    Mirrors search GitHub for that prefix.
 2. **Write a short description** in the repository's **About** box on GitHub (the gear next to
    "About"). The mirror's module list shows it.
-3. **Create the repository on GitHub** (empty: no README or license), then save your work and push it
+3. **Create the repository on GitHub** (empty: no README or license; the module has an MIT `LICENSE` in
+   your name, which you may change: the template asks nothing back), then save your work and push it
    from the module's folder (`create-module` already made it a Git repository). The first time you use
    Git on this computer, tell it who you are:
    ```bash

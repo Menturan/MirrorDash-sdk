@@ -4,6 +4,7 @@ import re
 import shutil
 import subprocess
 import sys
+from datetime import date
 from importlib.resources import files
 from pathlib import Path
 from string import Template
@@ -23,7 +24,7 @@ def _template_files():
 def create_module(name: str, description: str, author: str, icon: str = None, dry_run: bool = False) -> Path:
     """Write a new module from the template (mirrordash_sdk/templates/common and module) and return its directory.
 
-    Files use $folder_name, $package_name, $class_name, $title, $description and $author; a
+    Files use $folder_name, $package_name, $class_name, $title, $description, $author and $year; a
     directory named __package__ becomes the Python package, and gitignore becomes .gitignore.
     """
     folder_name = name.lower().replace("_", "-")  # the distribution name: mirrordash-my-widget
@@ -56,7 +57,7 @@ def create_module(name: str, description: str, author: str, icon: str = None, dr
         fa_icon = icon
 
     values = {"folder_name": folder_name, "package_name": package_name, "class_name": class_name,
-              "title": title, "description": description, "author": author}
+              "title": title, "description": description, "author": author, "year": str(date.today().year)}
     print(f"{'[DRY RUN] Would create' if dry_run else 'Creating'} module '{folder_name}' "
           f"in {target_dir}...")
 
