@@ -1,6 +1,6 @@
 [project]
 name = "mirrordash-sdk"
-version = "0.6.0"
+version = "0.7.0"
 description = "Create and try MirrorDash modules"
 readme = "README.md"
 license = "MIT AND MIT-0"  # MIT-0: the module template, so a module made with it is its author's
