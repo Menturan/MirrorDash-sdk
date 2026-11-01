@@ -551,6 +551,40 @@ It always gives back two things: `data` (the answer) and `error` (what went wron
 - **The module `create-module` makes** already has all of this: an API key setting, example data until a
   key is entered, and a message for every error.
 
+### Sample answers for the preview
+
+The admin page shows your card beside its settings, as the unsaved settings would draw it (a MirrorDash newer than 0.10.0).
+It runs your `render()` once with those settings, but `fetch`/`fetch_json` don't go out: they answer
+from sample answers you put in `preview/` in your package. No API is called and no key leaves the form.
+
+```
+mirrordash_my_widget/preview/fixtures.json
+mirrordash_my_widget/preview/current.json
+```
+
+```json
+{
+  "captured": "2026-11-02",
+  "answers": {
+    "api.example.com/v1/current": "current.json",
+    "*/api/states/*": "one_state.json"
+  }
+}
+```
+
+- **A pattern per address:** host and path (no `https://`, no query), with `*` for any part. The first
+  pattern that matches answers; no match answers as if offline (`error == "offline"`).
+- **Dates stay current:** every date in the files (`2026-11-02`, and `20261102T0800` in iCalendar) moves on
+  by the days since `captured`, so a forecast or a calendar still shows days to come. A Unix timestamp
+  doesn't move.
+- **Made up, not copied:** the files ship with your module. No keys, no one's real data, no articles or
+  headlines from someone else's feed.
+- **A module that fetches nothing** writes `{"answers": {}}`, so the admin page knows it can preview it.
+- **Without `preview/fixtures.json`** the admin page shows the card the mirror shows now instead.
+- **In the preview** your module's `self.expose` goes nowhere, `self.gpio` raises `RuntimeError` (as for a
+  pin the mirror holds) and events you publish reach no one, so a relay can't switch from a preview.
+  `validate` checks that every file `fixtures.json` names is there.
+
 ---
 
 ## 6. Settings

@@ -2,6 +2,7 @@ import ast
 import json
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
@@ -121,6 +122,31 @@ def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
                 has_errors = True
             elif "def run_loop" in plugin_content:
                 print("  [✓] plugin.py references CancelledError (clean shutdown support)")
+
+        # The admin page's preview: sample answers in preview/fixtures.json, each file beside it
+        fixtures_file = package_dir / "preview" / "fixtures.json"
+        if fixtures_file.exists():
+            try:
+                fixtures = json.loads(fixtures_file.read_text(encoding="utf-8"))
+                answers = fixtures.get("answers")
+                if not isinstance(answers, dict):
+                    raise ValueError('it needs "answers": {"<host + path pattern>": "<file in preview/>"}')
+                if "captured" in fixtures:
+                    date.fromisoformat(fixtures["captured"])
+                missing = [name for name in answers.values()
+                           if not isinstance(name, str) or "/" in name or name.startswith(".")
+                           or not (package_dir / "preview" / name).is_file()]
+                if missing:
+                    print(f"  [✗] preview/fixtures.json names files that aren't in preview/: {missing}")
+                    has_errors = True
+                else:
+                    print(f"  [✓] preview/fixtures.json has {len(answers)} sample answer(s) for the admin page's preview")
+            except (ValueError, TypeError, AttributeError) as fe:
+                print(f"  [✗] preview/fixtures.json is invalid: {fe}")
+                has_errors = True
+        else:
+            print("  [!] Warning: no preview/fixtures.json: the admin page previews this module only as the mirror shows it now.")
+            has_warnings = True
 
         # Check config_schema.json or plugin.py config_schema attribute
         schema_file = package_dir / "config_schema.json"

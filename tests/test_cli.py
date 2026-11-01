@@ -72,6 +72,19 @@ def test_validate_valid_module():
         result = runner.invoke(main, ["validate", "mirrordash-test"])
         assert result.exit_code == 0
         assert "STATUS: PASS WITH WARNINGS" in result.output
+        assert "1 sample answer(s) for the admin page's preview" in result.output
+
+
+def test_validate_rejects_a_preview_sample_that_isnt_there():
+    """preview/fixtures.json naming a file that isn't in preview/ (or one outside it) fails the module."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["create-module", "mirrordash-test"])
+        fixtures = Path("mirrordash-test/mirrordash_test/preview/fixtures.json")
+        fixtures.write_text(json.dumps({"captured": "2026-11-02", "answers": {"*": "gone.json", "x": "../plugin.py"}}))
+        result = runner.invoke(main, ["validate", "mirrordash-test"])
+        assert result.exit_code != 0
+        assert "names files that aren't in preview/: ['gone.json', '../plugin.py']" in result.output
 
 @patch("subprocess.run")
 def test_register_module(mock_run):
