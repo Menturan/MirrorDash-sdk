@@ -619,6 +619,8 @@ self.city = config.get("city", "Stockholm")
   typed. `mirrordash-sdk validate` warns if you forget.
 - **An address at home** (Home Assistant, a printer, a sensor box) gets `"format": "lan-url"`. Your module
   may reach the home network only at the addresses typed in such settings; the admin page tells the owner.
+- **An icon** (a Lucide name for `<i data-lucide="…">`) gets `"format": "icon"`: the admin page suggests
+  the names while the owner types and draws the icon beside it.
 - **Don't add these yourself:** `enabled`, `position`, `carousel_group`, `carousel_interval`,
   `max_width`, `max_height`, `z_index` and `opacity`. The mirror adds them to every module's form.
 - When the user changes a setting, the mirror restarts your module with the new values.
