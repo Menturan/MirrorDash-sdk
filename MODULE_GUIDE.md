@@ -998,7 +998,8 @@ A `router` (FastAPI `APIRouter`) gives your module its own web addresses. See [p
 
 `fetch_json` and the component library need MirrorDash 0.5 or newer, `video_window` and
 `video_is_playing` 0.8.0, `router`, `api_path`, `"format": "lan-url"` and `gpio` 0.9.1, `public=True` 0.9.4,
-`exposes`, `expose` and `on_control` 0.10.0; `mirrordash-sdk dev-setup` installs
+`exposes`, `expose` and `on_control` 0.10.0, `"format": "icon"` 0.11.0 (an older mirror shows a plain text
+field); `mirrordash-sdk dev-setup` installs
 the right version.
 
 ---

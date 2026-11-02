@@ -102,6 +102,7 @@ Provide a `config_schema.json` next to `plugin.py` to allow the user to modify s
 - If providing a set of selections, use `enum` to render a dropdown.
 - API keys, tokens and passwords get `"format": "password"`, so the admin page hides what is typed (`mirrordash-sdk validate` warns otherwise).
 - An address on the home network (Home Assistant, a device) gets `"format": "lan-url"`: the module runs sandboxed and reaches the home network only at such addresses.
+- A Lucide icon name gets `"format": "icon"`: the admin page suggests names as the owner types and draws the icon (MirrorDash 0.11.0; older shows a text field).
 - Don't declare `enabled`, `position`, `carousel_group`, `carousel_interval`, `max_width`, `max_height`, `z_index` or `opacity`: the core adds them to every module.
 - `self.render_template` / `self.translate` don't exist yet inside `__init__`; use them from `render` or `run_loop`.
 
