@@ -302,6 +302,8 @@ def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
             print("      screen 60 times a second, day and night: the Raspberry Pi runs hot and uses more power.")
             print("      Let the card stand still between updates: step with setInterval and a short transition")
             print("      (a ticker that moves one item every few seconds), or show motion only while something loads.")
+            print("      A requestAnimationFrame loop also drops video frames while a video plays. If the motion must")
+            print("      stay, say so in your README and give the owner a setting to turn it off.")
             has_warnings = True
         if stepped:
             print(f"  [!] Warning: never-ending animation with steps(): {', '.join(stepped)}")

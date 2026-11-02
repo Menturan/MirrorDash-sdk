@@ -420,12 +420,17 @@ The most useful components:
 
 - **No background color** on your module: it floats on the black mirror.
 - **No fixed widths** like `width: 150px` on text: Swedish or German words are often longer than English.
-- **Nothing moves forever.** An `infinite` CSS animation or a `requestAnimationFrame` loop makes the
-  mirror redraw the whole screen 60 times a second, day and night, and the Raspberry Pi runs hot.
-  Between updates your card stands still. A ticker steps instead: `setInterval` every few seconds and a
-  short `transition`. Motion is fine while something loads, if it stops. `mirrordash-sdk validate` warns.
-  If it really must scroll smoothly: `steps()` with one whole pixel per step, no `mask-image` and
-  `will-change: transform` draws only when it moves, about a quarter of the cost (validate warns mildly).
+- **Avoid motion that never ends.** It isn't forbidden, but it's strongly advised against: an
+  `infinite` CSS animation or a `requestAnimationFrame` loop makes the mirror redraw the whole screen
+  60 times a second, day and night, and the Raspberry Pi runs hot. It also costs video: while a video
+  plays the mirror pauses your CSS animations, but not your own JavaScript, and every redraw a script
+  causes drops a frame of the video. Best, your card stands still between updates. A ticker steps
+  instead: `setInterval` every few seconds and a short `transition`. Motion is fine while something
+  loads, if it stops. `mirrordash-sdk validate` warns.
+  If it really must keep moving (falling snow, a smooth scroll): `steps()` with one whole pixel per
+  step, no `mask-image` and `will-change: transform` draws only when it moves, about a quarter of the
+  cost (validate warns mildly). Say so in your README and give the owner a setting to turn the motion
+  off or down: it's their mirror and their choice.
 - The mirror's browser is **WebKit** (like Safari), not Chrome. Plain HTML, CSS and JavaScript work; avoid
   brand-new or Chrome-only features.
 
