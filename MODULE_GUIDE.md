@@ -419,6 +419,10 @@ The most useful components:
 **Rules for the mirror's look** (the component library already follows them):
 
 - **No background color** on your module: it floats on the black mirror.
+- **Full-screen modules** (a photo behind everything, snow in front): the owner can put a module in the
+  `background` or `foreground` position (MirrorDash 0.12 or newer). There the card is see-through and fills
+  the screen edge to edge, so give your content `height: 100%`. Let the owner choose how bright it is and
+  how much moves; the foreground never gets clicks.
 - **No fixed widths** like `width: 150px` on text: Swedish or German words are often longer than English.
 - **Avoid motion that never ends.** It isn't forbidden, but it's strongly advised against: an
   `infinite` CSS animation or a `requestAnimationFrame` loop makes the mirror redraw the whole screen
