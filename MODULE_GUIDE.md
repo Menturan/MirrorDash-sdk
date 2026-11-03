@@ -378,7 +378,8 @@ its own, as a user of its own. On a mirror that means:
 - It writes only in its `data_dir` and `cache_dir` (see [part 8](#8-saving-files)). It can't read
   MirrorDash's settings, passwords or logins, nor another module's settings or files, and it has no `sudo`.
 - It can use **I²C and SPI**, and the free **GPIO** pins it asks the mirror for with `self.gpio` (see
-  [part 9](#9-hardware-video-web-addresses-and-home-assistant)), but not the camera or the sound.
+  [part 9](#9-hardware-video-web-addresses-and-home-assistant)), and it can **play sound**, but not use the
+  camera or a microphone.
 - The mirror never runs your code to show the admin page: it reads `config_schema.json`, `icon.svg` and
   `translations/` as files. A schema written in the Python class isn't read.
 
@@ -786,6 +787,31 @@ plays a video, the mirror updates once a minute, on the minute:
 - A module that plays a video in `self.video_window` (below) gets all this for itself, and its own
   updates still go out at once.
 
+**Playing sound.** Your module can play sound through the 3.5 mm jack or the screen's HDMI speakers; it
+can never record (a microphone is the mirror's alone, also one plugged in later). The mirror has GStreamer
+with MP3, AAC, HTTP and Icecast, so a radio stream is one process:
+
+```python
+self.player = await asyncio.create_subprocess_exec(
+    "gst-launch-1.0", "-q", "playbin3", f"uri={url}", "audio-sink=alsasink device=plughw:CARD=Headphones,DEV=0")
+```
+
+- The outputs, by name (their numbers change): `plughw:CARD=Headphones,DEV=0` (the jack) and
+  `hdmi:CARD=vc4hdmi,DEV=0` (HDMI, if the screen has speakers: it plays without an error to one that has
+  none, so let the owner choose). Several modules can play on the jack at once; HDMI takes one.
+- HDMI has no volume control: set it in the pipeline (`playbin3 volume=0.35`), which works on both.
+- Stop the process (`self.player.terminate()`) when your module stops, and when its card goes: `on_shown`
+  below.
+
+**When your card is shown.** `on_shown(shown)` on your class is called at your module's start and
+whenever its card comes on the screen (`True`) or goes (`False`): the screen off, its schedule outside
+its times, or privacy mode without *Shown in Privacy Mode*. A carousel's turn doesn't count. Sync or async:
+
+```python
+    async def on_shown(self, shown):
+        await (self.play() if shown and self.autoplay else self.stop())
+```
+
 **Playing a video.** The mirror gives your video its place; your module brings the player. Put an element
 with `data-video-window` on your card where the video goes, sized with CSS, and run your player inside
 `self.video_window()`:
@@ -1029,11 +1055,12 @@ Errors from your module start with its name, for example `mirrordash.modules.mir
 logger); without it they wait until the screen is on. See [part 5](#5-fetching-data).
 A `router` (FastAPI `APIRouter`) gives your module its own web addresses. See [part 9](#9-hardware-video-web-addresses-and-home-assistant).
 `async def on_control(self, name, value)` gets Home Assistant's commands for what you expose. See [part 9](#9-hardware-video-web-addresses-and-home-assistant).
+`async def on_shown(self, shown)` hears when your card comes on the screen and when it goes. See [part 9](#9-hardware-video-web-addresses-and-home-assistant).
 
 `fetch_json` and the component library need MirrorDash 0.5 or newer, `video_window` and
 `video_is_playing` 0.8.0, `router`, `api_path`, `"format": "lan-url"` and `gpio` 0.9.1, `public=True` 0.9.4,
 `exposes`, `expose` and `on_control` 0.10.0, `"format": "icon"` 0.11.0 (an older mirror shows a plain text
-field), `answer.headers` and `"preview"` 0.12; `mirrordash-sdk dev-setup` installs
+field), `answer.headers`, `"preview"`, `on_shown` and sound 0.12 (sound with the OS image after 0.11.0); `mirrordash-sdk dev-setup` installs
 the right version.
 
 ---
