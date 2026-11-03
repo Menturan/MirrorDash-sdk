@@ -601,6 +601,9 @@ mirrordash_my_widget/preview/current.json
 - **In the preview** your module's `self.expose` goes nowhere, `self.gpio` raises `RuntimeError` (as for a
   pin the mirror holds) and events you publish reach no one, so a relay can't switch from a preview.
   `validate` checks that every file `fixtures.json` names is there.
+- **A login of your own** (an OAuth service, a pairing) isn't there in the preview: its `data_dir` is a new,
+  empty folder. `config.get("preview")` is `True` there (MirrorDash 0.12 or newer), so skip the login and let
+  the sample answers draw the card, instead of showing how to log in.
 
 ---
 
@@ -991,6 +994,7 @@ Errors from your module start with its name, for example `mirrordash.modules.mir
 | `"cache_dir"` | A folder for things that may be thrown away. |
 | `"translations"` | The module's texts in the mirror's language. Usually you use `self.translate` instead. |
 | `"event_bus"` | Messages from the mirror's hardware (buttons, sensors) and other modules' public ones; `publish(name, data, public=True)` sends your own. See [part 9](#9-hardware-video-web-addresses-and-home-assistant). |
+| `"preview"` | `True` when the admin page's preview draws your card (0.12). See [part 5](#5-fetching-data). |
 | `"api_path"` | Where your module's `router` is served, `/api/modules/<instance>`. See [part 9](#9-hardware-video-web-addresses-and-home-assistant). |
 
 **On `self`** (added after `__init__`, so use them from `render` or `run_loop`):
@@ -1016,7 +1020,7 @@ A `router` (FastAPI `APIRouter`) gives your module its own web addresses. See [p
 `fetch_json` and the component library need MirrorDash 0.5 or newer, `video_window` and
 `video_is_playing` 0.8.0, `router`, `api_path`, `"format": "lan-url"` and `gpio` 0.9.1, `public=True` 0.9.4,
 `exposes`, `expose` and `on_control` 0.10.0, `"format": "icon"` 0.11.0 (an older mirror shows a plain text
-field), `answer.headers` 0.12; `mirrordash-sdk dev-setup` installs
+field), `answer.headers` and `"preview"` 0.12; `mirrordash-sdk dev-setup` installs
 the right version.
 
 ---
