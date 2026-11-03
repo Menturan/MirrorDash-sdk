@@ -792,9 +792,18 @@ can never record (a microphone is the mirror's alone, also one plugged in later)
 with MP3, AAC, HTTP and Icecast, so a radio stream is one process:
 
 ```python
+uri = urllib.parse.quote(url, safe=":/?#[]@&=+$,;%~")  # never the address as it came: see below
 self.player = await asyncio.create_subprocess_exec(
-    "gst-launch-1.0", "-q", "playbin3", f"uri={url}", "audio-sink=alsasink device=plughw:CARD=Headphones,DEV=0")
+    "setpriv", "--pdeathsig", "TERM", "--",              # the player stops when your module's process does
+    "gst-launch-1.0", "-q", "playbin3", f"uri={uri}", "audio-sink=alsasink device=plughw:CARD=Headphones,DEV=0")
 ```
+
+- **Percent-encode the address.** gst-launch reads its arguments as one pipeline description: an address
+  with `\"` in it ends the `uri` and adds elements of its own (a file reader, an upload). An address from a
+  station list, Home Assistant or a web call is someone else's text. Only http(s) addresses, too:
+  GStreamer plays `file://` as well.
+- `setpriv --pdeathsig` rather than `preexec_fn`: your module's process has threads, where `preexec_fn`
+  can hang the child.
 
 - The outputs, by name (their numbers change): `plughw:CARD=Headphones,DEV=0` (the jack) and
   `hdmi:CARD=vc4hdmi,DEV=0` (HDMI, if the screen has speakers: it plays without an error to one that has
