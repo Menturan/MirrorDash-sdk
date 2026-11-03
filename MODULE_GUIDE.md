@@ -641,6 +641,12 @@ self.city = config.get("city", "Stockholm")
   may reach the home network only at the addresses typed in such settings; the admin page tells the owner.
 - **An icon** (a Lucide name for `<i data-lucide="…">`) gets `"format": "icon"`: the admin page suggests
   the names while the owner types and draws the icon beside it.
+- **Files the owner uploads** (photos for a slideshow) get `"format": "files"` with `"accept": "image"`
+  (no `type`, no `default`): `{"format": "files", "accept": "image", "max_files": 500, "title": "Photos"}`.
+  The admin page shows them with an upload button once the module is saved; each photo is shrunk to the
+  screen and sent as a JPEG named with its date first (`2026-07-14_IMG_1234.jpg`). Nothing goes into
+  `config`: read the files from your cache folder (part 8). Images are the only kind so far; another
+  `accept` shows "not supported". (MirrorDash 0.12 or newer.)
 - **Don't add these yourself:** `enabled`, `position`, `carousel_group`, `carousel_interval`,
   `max_width`, `max_height`, `z_index` and `opacity`. The mirror adds them to every module's form.
 - When the user changes a setting, the mirror restarts your module with the new values.
@@ -699,6 +705,10 @@ self.state_file = os.path.join(self.data_dir, "state.json")
 ```
 
 Each copy of your module (a user can add the same module twice) gets its own folders.
+
+**Files the owner uploads** (a `files` setting, part 6) are in `cache_dir/files/<setting key>/`. Read them;
+don't change or delete them (the mirror removes them when the owner does), and never build a path from
+something a caller sent you: look the name up in the folder's listing.
 `self.fetch_json` already keeps its answers in `cache_dir`, so you don't need to.
 
 ---
