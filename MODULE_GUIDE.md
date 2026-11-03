@@ -552,6 +552,14 @@ It always gives back two things: `data` (the answer) and `error` (what went wron
   data, error = answer
   answer.fetched_at  # when the data was downloaded (a datetime), also for a saved answer; None without data
   ```
+- **The answer's headers** are there too (MirrorDash 0.12 or newer), read in any case. A busy service says
+  how long to wait in a 429's `Retry-After`; then `data` is the last good answer and the headers are the 429's:
+  ```python
+  answer = await self.fetch_json(URL)
+  if answer[1] == "http 429":
+      self.pause_until = time.monotonic() + int(answer.headers.get("Retry-After", 60))
+  ```
+  They are empty when no call was made (a saved answer reused, the admin page's preview) or nothing answered.
 - **The last good answer is per request:** the same URL with another method or body (two GraphQL queries)
   has its own.
 - **It waits while the screen is off.** A sleeping mirror calls no APIs: `fetch`/`fetch_json` returns when the
@@ -965,7 +973,7 @@ Errors from your module start with its name, for example `mirrordash.modules.mir
 | A change doesn't show. | The mirror runs without watching for changes. | Start it with `uvx mirrordash-sdk start` from the module's folder. |
 | An icon is missing. | The icon name doesn't exist. | Check the name at [lucide.dev/icons](https://lucide.dev/icons). |
 | `fetch_json` gives `"rejected"`. | The service doesn't accept the API key. | Check the key, and which header the service wants it in. |
-| `fetch_json` gives `"http 429"`. | Too many requests. | Raise `interval`. |
+| `fetch_json` gives `"http 429"`. | Too many requests. | Raise `interval`, or wait as long as `answer.headers.get("Retry-After")` says. |
 | The mirror shows "set an admin password". | The local mirror has no admin password. | Run `uvx mirrordash-sdk dev-setup` once; it sets `mirrordash`. |
 | `uv run pytest` can't find your module. | You're not in the module's folder. | `cd` to the folder with `pyproject.toml` and run it again. |
 
@@ -1008,7 +1016,7 @@ A `router` (FastAPI `APIRouter`) gives your module its own web addresses. See [p
 `fetch_json` and the component library need MirrorDash 0.5 or newer, `video_window` and
 `video_is_playing` 0.8.0, `router`, `api_path`, `"format": "lan-url"` and `gpio` 0.9.1, `public=True` 0.9.4,
 `exposes`, `expose` and `on_control` 0.10.0, `"format": "icon"` 0.11.0 (an older mirror shows a plain text
-field); `mirrordash-sdk dev-setup` installs
+field), `answer.headers` 0.12; `mirrordash-sdk dev-setup` installs
 the right version.
 
 ---
