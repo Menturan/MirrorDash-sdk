@@ -175,7 +175,8 @@ def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
         if schema_data:
             properties = schema_data.get("properties", {})
             # The core adds these to every module's settings form; a module redeclaring them is ignored
-            core_fields = ["enabled", "position", "carousel_group", "carousel_interval", "max_width", "max_height", "z_index", "opacity"]
+            core_fields = ["enabled", "position", "carousel_group", "carousel_interval", "max_width", "max_height", "z_index", "opacity",
+                           "show_in_privacy", "schedule"]
             redeclared = [p for p in core_fields if p in properties]
             if redeclared:
                 print(f"  [!] Warning: config_schema declares settings the core already provides: {redeclared}")

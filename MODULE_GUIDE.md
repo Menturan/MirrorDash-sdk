@@ -652,7 +652,8 @@ self.city = config.get("city", "Stockholm")
   `config`: read the files from your cache folder (part 8). Images are the only kind so far; another
   `accept` shows "not supported". (MirrorDash 0.12 or newer.)
 - **Don't add these yourself:** `enabled`, `position`, `carousel_group`, `carousel_interval`,
-  `max_width`, `max_height`, `z_index` and `opacity`. The mirror adds them to every module's form.
+  `max_width`, `max_height`, `z_index`, `opacity`, `show_in_privacy` and `schedule`. The mirror adds them
+  to every module's form.
 - When the user changes a setting, the mirror restarts your module with the new values.
 
 **The mirror's global settings** are the same for all modules. Use them instead of asking the user again:
@@ -1069,7 +1070,8 @@ A `router` (FastAPI `APIRouter`) gives your module its own web addresses. See [p
 `fetch_json` and the component library need MirrorDash 0.5 or newer, `video_window` and
 `video_is_playing` 0.8.0, `router`, `api_path`, `"format": "lan-url"` and `gpio` 0.9.1, `public=True` 0.9.4,
 `exposes`, `expose` and `on_control` 0.10.0, `"format": "icon"` 0.11.0 (an older mirror shows a plain text
-field), `answer.headers`, `"preview"`, `on_shown` and sound 0.12 (sound with the OS image after 0.11.0); `mirrordash-sdk dev-setup` installs
+field), `answer.headers`, `"preview"`, `"format": "files"`, the `background` and `foreground` positions
+(`--md-layer-size`), `on_shown` and sound 0.12 (sound with the OS image after 0.11.0); `mirrordash-sdk dev-setup` installs
 the right version.
 
 ---

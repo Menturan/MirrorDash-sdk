@@ -75,6 +75,7 @@ def __init__(self, config):
 All module designs follow the mirror's design system (the component library at `/design`), so every module looks like part of one calm display:
 
 - **Transparent Backgrounds**: Widgets float on a pure black background. Never define a custom background color on the module wrapper.
+- **Full-screen layers**: in the `background` or `foreground` position (MirrorDash 0.12) the card is see-through and the mirror sets `--md-layer-size: 100%` on it; size with `width: var(--md-layer-size, 40vw)` so the same CSS fills the screen there and keeps a box elsewhere.
 - **Component library first**: start every layout from `http://localhost:8000/design` and copy its markup; everything there works in a module except the parts marked "The mirror's own UI". The usual ones: `.module-header`, `.display-xl`/`.display-lg` (big numbers), `.data-list` (label–value rows), `.stats-grid`, `.forecast-grid`, `.agenda-list`, `.gauge-bar`, `.alert-callout`, `.module-message` (errors and empty states), `.flex-*`, `.text-*`. No CSS needed for these.
 - **HUD Contrast**: For your own CSS, use the design tokens:
   - Primary text/numbers: `var(--color-high-contrast)` (#ffffff)
@@ -103,7 +104,8 @@ Provide a `config_schema.json` next to `plugin.py` to allow the user to modify s
 - API keys, tokens and passwords get `"format": "password"`, so the admin page hides what is typed (`mirrordash-sdk validate` warns otherwise).
 - An address on the home network (Home Assistant, a device) gets `"format": "lan-url"`: the module runs sandboxed and reaches the home network only at such addresses.
 - A Lucide icon name gets `"format": "icon"`: the admin page suggests names as the owner types and draws the icon (MirrorDash 0.11.0; older shows a text field).
-- Don't declare `enabled`, `position`, `carousel_group`, `carousel_interval`, `max_width`, `max_height`, `z_index` or `opacity`: the core adds them to every module.
+- Files the owner uploads (photos) get `"format": "files"` with `"accept": "image"` (no `type`, no `default`); nothing goes into `config`, the module reads them from its cache folder (MirrorDash 0.12).
+- Don't declare `enabled`, `position`, `carousel_group`, `carousel_interval`, `max_width`, `max_height`, `z_index`, `opacity`, `show_in_privacy` or `schedule`: the core adds them to every module.
 - `self.render_template` / `self.translate` don't exist yet inside `__init__`; use them from `render` or `run_loop`.
 
 ---
