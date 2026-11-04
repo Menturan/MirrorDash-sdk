@@ -103,6 +103,8 @@ Provide a `config_schema.json` next to `plugin.py` to allow the user to modify s
 - If providing a set of selections, use `enum` to render a dropdown.
 - API keys, tokens and passwords get `"format": "password"`, so the admin page hides what is typed (`mirrordash-sdk validate` warns otherwise).
 - An address on the home network (Home Assistant, a device) gets `"format": "lan-url"`: the module runs sandboxed and reaches the home network only at such addresses.
+- Choices that come from outside the module (schools, calendars, places) get `"type": "object"` with `"format": "list"` (a dropdown) or `"search"` (suggestions while typing) and an `async def settings_list_<key>(self, item)` / `settings_search_<key>(self, item, query)` returning `[{"id", "name", "detail"}]`; saved as `{"id", "name"}`. Keys a-z, 0-9 and `_`; `raise ValueError("…")` shows its text under the field (MirrorDash 0.13; MODULE_GUIDE part 6).
+- The admin page is English only: titles, descriptions and those errors in English; `translations/` are for the mirror.
 - A Lucide icon name gets `"format": "icon"`: the admin page suggests names as the owner types and draws the icon (MirrorDash 0.11.0; older shows a text field).
 - Files the owner uploads (photos) get `"format": "files"` with `"accept": "image"` (no `type`, no `default`); nothing goes into `config`, the module reads them from its cache folder (MirrorDash 0.12).
 - Don't declare `enabled`, `position`, `carousel_group`, `carousel_interval`, `max_width`, `max_height`, `z_index`, `opacity`, `show_in_privacy` or `schedule`: the core adds them to every module.

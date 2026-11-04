@@ -651,10 +651,60 @@ self.city = config.get("city", "Stockholm")
   screen and sent as a JPEG named with its date first (`2026-07-14_IMG_1234.jpg`). Nothing goes into
   `config`: read the files from your cache folder (part 8). Images are the only kind so far; another
   `accept` shows "not supported". (MirrorDash 0.12 or newer.)
+- **Choices your module gives** (the schools of a municipality, a calendar, a place): see *List and
+  search settings* below.
 - **Don't add these yourself:** `enabled`, `position`, `carousel_group`, `carousel_interval`,
   `max_width`, `max_height`, `z_index`, `opacity`, `show_in_privacy` and `schedule`. The mirror adds them
   to every module's form.
 - When the user changes a setting, the mirror restarts your module with the new values.
+- **The admin page is in English only**: write titles, descriptions and the errors below in English.
+  `translations/` (part 7) are for what the mirror shows.
+
+### List and search settings
+
+When the choices come from outside your module, mark the setting `"format": "list"` (a dropdown) or
+`"format": "search"` (a box with suggestions as the owner types), with `"type": "object"`, and write one
+method for it, named after the setting's key (MirrorDash 0.13 or newer):
+
+```json
+"municipality": {"type": "object", "format": "list", "title": "Municipality"},
+"school":       {"type": "object", "format": "list", "title": "School"},
+"place":        {"type": "object", "format": "search", "title": "Place"}
+```
+
+```python
+async def settings_list_school(self, item):
+    """Every school to pick from. item: the other fields of the setting's list item (or the whole form)."""
+    municipality = (item.get("municipality") or {}).get("id")
+    if not municipality:
+        raise ValueError("Choose a municipality first")
+    data, error = await self.fetch_json(f"https://api.example.com/schools/{municipality}")
+    if error:
+        raise ValueError(f"Couldn't load the schools ({error})")
+    return [{"id": s["id"], "name": s["name"], "detail": s["town"]} for s in data]
+
+async def settings_search_place(self, item, query):
+    """The places matching what the owner typed."""
+    data, error = await self.fetch_json("https://api.example.com/places", params={"q": query})
+    return [{"id": p["id"], "name": p["name"], "detail": p["region"]} for p in data or []]
+```
+
+- **Which one:** you know the choices when you write the module? An `enum`. They come from outside? A
+  `list`. Too many to list (every place in a country)? A `search`.
+- **The key** is lowercase letters, digits and `_` (`school_district` → `settings_list_school_district`);
+  the title may say anything. `mirrordash-sdk validate` checks the key, the type and the method.
+- **What it gets:** `item` is the other fields of the setting's list item, or the whole form for a setting
+  outside a list, so a school list can follow the municipality picked just above it; `self.config` is the
+  form as it is now, not yet saved, so an API key typed a moment ago works. A list is asked when the form
+  opens and again when another field changes; a search as the owner types.
+- **What it gives:** a list of `{"id", "name", "detail"}` (`detail` is optional, shown dimmed). The choice
+  is saved as `{"id": "913", "name": "Fridhemsskolan"}`, `{}` for none: read `self.config["school"].get("id")`.
+- **When it can't:** `raise ValueError("Enter the API key first")`: the text is shown under the field. A
+  choice already saved stays. Any other error shows a general message, with yours in the log.
+- **Before it's saved:** a module the owner is adding has no instance running yet, so the mirror runs your
+  class in a short-lived process for the form: `self.fetch_json` goes to the network, the screen counts as
+  on, and nothing reaches the screen, the GPIO pins or the event bus. It can't reach the home network until
+  the module is saved.
 
 **The mirror's global settings** are the same for all modules. Use them instead of asking the user again:
 
@@ -1071,7 +1121,8 @@ A `router` (FastAPI `APIRouter`) gives your module its own web addresses. See [p
 `video_is_playing` 0.8.0, `router`, `api_path`, `"format": "lan-url"` and `gpio` 0.9.1, `public=True` 0.9.4,
 `exposes`, `expose` and `on_control` 0.10.0, `"format": "icon"` 0.11.0 (an older mirror shows a plain text
 field), `answer.headers`, `"preview"`, `"format": "files"`, the `background` and `foreground` positions
-(`--md-layer-size`), `on_shown` and sound 0.12 (sound with the OS image after 0.11.0); `mirrordash-sdk dev-setup` installs
+(`--md-layer-size`), `on_shown` and sound 0.12 (sound with the OS image after 0.11.0), `"format": "list"` and `"search"` 0.13 (an older
+mirror shows an empty group for them); `mirrordash-sdk dev-setup` installs
 the right version.
 
 ---

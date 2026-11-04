@@ -86,6 +86,38 @@ def test_validate_rejects_a_preview_sample_that_isnt_there():
         assert result.exit_code != 0
         assert "names files that aren't in preview/: ['gone.json', '../plugin.py']" in result.output
 
+
+def test_validate_wants_the_method_of_a_list_or_search_setting():
+    """A list or search setting (also in a list setting's items) needs an object type, a key the method can be
+    named from, and that async method in plugin.py."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["create-module", "mirrordash-test"])
+        schema_file = Path("mirrordash-test/mirrordash_test/config_schema.json")
+        schema = json.loads(schema_file.read_text())
+        schema["properties"].update({
+            "schools": {"type": "array", "items": {"type": "object", "properties": {
+                "school": {"type": "object", "format": "list"}}}},
+            "place": {"type": "string", "format": "search"},
+            "Bad-Key": {"type": "object", "format": "list"}})
+        schema_file.write_text(json.dumps(schema))
+        result = runner.invoke(main, ["validate", "mirrordash-test"])
+        assert result.exit_code != 0
+        assert 'needs "async def settings_list_school(self, item)" in plugin.py' in result.output
+        assert 'the search setting "place" needs "type": "object"' in result.output
+        assert 'needs "async def settings_search_place(self, item, query)"' in result.output
+        assert 'the list setting "Bad-Key" needs a key of a-z, 0-9 and _ only' in result.output
+
+        del schema["properties"]["Bad-Key"]
+        schema["properties"]["place"]["type"] = "object"
+        schema_file.write_text(json.dumps(schema))
+        plugin = Path("mirrordash-test/mirrordash_test/plugin.py")
+        plugin.write_text(plugin.read_text() + "\n    async def settings_list_school(self, item):\n        return []\n"
+                          "\n    async def settings_search_place(self, item, query):\n        return []\n")
+        result = runner.invoke(main, ["validate", "mirrordash-test"])
+        assert result.exit_code == 0, result.output
+
+
 @patch("subprocess.run")
 def test_register_module(mock_run):
     res = MagicMock()
