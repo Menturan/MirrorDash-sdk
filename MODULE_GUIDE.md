@@ -653,6 +653,12 @@ self.city = config.get("city", "Stockholm")
   `accept` shows "not supported". (MirrorDash 0.12 or newer.)
 - **Choices your module gives** (the schools of a municipality, a calendar, a place): see *List and
   search settings* below.
+- **Rules on what is typed** (MirrorDash 0.13 or newer): `"required": ["url"]` beside `properties` (and in a
+  list setting's `items`), `minimum`/`maximum` on a number, `minLength`/`maxLength` on text, and `pattern`
+  with `pattern_message` for a format:
+  `{"type": "string", "pattern": "([01]\\d|2[0-3]):[0-5]\\d", "pattern_message": "A time like 13:00"}`. The admin
+  page points at a broken one before saving, and the mirror refuses to save it. The pattern must match the
+  whole value; an empty value breaks only `required` (`false` and `[]` are values).
 - **Don't add these yourself:** `enabled`, `position`, `carousel_group`, `carousel_interval`,
   `max_width`, `max_height`, `z_index`, `opacity`, `show_in_privacy` and `schedule`. The mirror adds them
   to every module's form.
@@ -1121,8 +1127,8 @@ A `router` (FastAPI `APIRouter`) gives your module its own web addresses. See [p
 `video_is_playing` 0.8.0, `router`, `api_path`, `"format": "lan-url"` and `gpio` 0.9.1, `public=True` 0.9.4,
 `exposes`, `expose` and `on_control` 0.10.0, `"format": "icon"` 0.11.0 (an older mirror shows a plain text
 field), `answer.headers`, `"preview"`, `"format": "files"`, the `background` and `foreground` positions
-(`--md-layer-size`), `on_shown` and sound 0.12 (sound with the OS image after 0.11.0), `"format": "list"` and `"search"` 0.13 (an older
-mirror shows an empty group for them); `mirrordash-sdk dev-setup` installs
+(`--md-layer-size`), `on_shown` and sound 0.12 (sound with the OS image after 0.11.0), the rules on what is typed, `"format": "list"` and `"search"` 0.13 (an older
+mirror shows an empty group for the last two); `mirrordash-sdk dev-setup` installs
 the right version.
 
 ---
