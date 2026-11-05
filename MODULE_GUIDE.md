@@ -659,6 +659,15 @@ self.city = config.get("city", "Stockholm")
   `{"type": "string", "pattern": "([01]\\d|2[0-3]):[0-5]\\d", "pattern_message": "A time like 13:00"}`. The admin
   page points at a broken one before saving, and the mirror refuses to save it. The pattern must match the
   whole value; an empty value breaks only `required` (`false` and `[]` are values).
+- **A setting only for one choice** (the settings of the source picked): give it
+  `"show_if": {"source": ["immich"]}`, naming another setting of the same form (a dropdown or a text
+  box) and the values it shows for; several keys must all match. Hidden, it keeps its saved value:
+  `config["immich_url"]` is there whatever is picked. Prefer it to a nested `"type": "object"` per
+  choice, which moves the keys and hides a `lan-url` or password inside it from the core. Example on
+  `/design#forms`. (MirrorDash 0.14 or newer; older ones show every field.)
+- **Settings in a section** (advanced ones, say): give each field `"group": "Advanced"`. The admin page
+  draws the fields with the same group in one section that opens with a click, where the first of them
+  is. Only the form changes: the keys stay where they were. (MirrorDash 0.14 or newer.)
 - **Don't add these yourself:** `enabled`, `position`, `carousel_group`, `carousel_interval`,
   `max_width`, `max_height`, `z_index`, `opacity`, `show_in_privacy` and `schedule`. The mirror adds them
   to every module's form.
