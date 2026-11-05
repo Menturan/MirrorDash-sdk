@@ -116,8 +116,8 @@ class OutsideModule:
     def __init__(self, config):
         self.config = config
         self.name = "mirrordash_outside"
-        self.interval = config.get("interval", 600)
-        self.show_wind = config.get("show_wind", True)  # a setting you add in step 4
+        self.interval = config["interval"]  # the schema's default until the owner saves another (part 6)
+        self.show_wind = config.get("show_wind", True)  # not in the schema until step 4, so .get with a default
         # Where the mirror is: set once for the whole mirror, under Settings in the admin page
         self.latitude = config.get("globals", {}).get("latitude", 59.33)
         self.longitude = config.get("globals", {}).get("longitude", 18.07)
@@ -244,7 +244,8 @@ page builds a form from it. Add a `show_wind` setting: replace everything in
 }
 ```
 
-`plugin.py` already reads it: `self.show_wind = config.get("show_wind", True)`.
+`plugin.py` already reads it: `self.show_wind = config.get("show_wind", True)`. Now that the schema has it,
+`config["show_wind"]` does too: the mirror hands your module each setting's default until one is saved.
 
 Now try it as a user would:
 
@@ -622,56 +623,61 @@ module gets the values in `config` (read them in `__init__`):
   "description": "The weather outside, right now.",
   "type": "object",
   "properties": {
-    "city":    { "type": "string",  "default": "Stockholm", "title": "City", "description": "Which city to show." },
-    "api_key": { "type": "string",  "default": "", "format": "password", "title": "API Key", "description": "Your key from the service." },
+    "city":      { "type": "string",  "default": "Stockholm", "title": "City", "description": "Which city to show." },
+    "api_key":   { "type": "string",  "default": "", "format": "password", "title": "API Key", "description": "Your key from the service." },
     "show_wind": { "type": "boolean", "default": true, "title": "Show Wind", "description": "Show the wind speed." }
   }
 }
 ```
 
 ```python
-self.city = config.get("city", "Stockholm")
+self.city = config["city"]
 ```
 
-- `title` at the top is the module's name in the admin page ("Outside", not "Outside Module Settings");
-  `description` is the line under it.
-- Each setting has a `type` (`string`, `integer`, `number`, `boolean`), a `default`, a `title` and a
-  `description`.
-- **Every kind of field** (text, number, switch, slider, dropdown, list, color, password, …) is shown
-  with its JSON in the component library: `http://localhost:8000/design#forms`.
-- **Secrets** (API keys, tokens, passwords) get `"format": "password"`, so the admin page hides what is
-  typed. `mirrordash-sdk validate` warns if you forget.
-- **An address at home** (Home Assistant, a printer, a sensor box) gets `"format": "lan-url"`. Your module
-  may reach the home network only at the addresses typed in such settings; the admin page tells the owner.
-- **An icon** (a Lucide name for `<i data-lucide="…">`) gets `"format": "icon"`: the admin page suggests
-  the names while the owner types and draws the icon beside it.
-- **Files the owner uploads** (photos for a slideshow) get `"format": "files"` with `"accept": "image"`
-  (no `type`, no `default`): `{"format": "files", "accept": "image", "max_files": 500, "title": "Photos"}`.
-  The admin page shows them with an upload button once the module is saved; each photo is shrunk to the
-  screen and sent as a JPEG named with its date first (`2026-07-14_IMG_1234.jpg`). Nothing goes into
-  `config`: read the files from your cache folder (part 8). Images are the only kind so far; another
-  `accept` shows "not supported". (MirrorDash 0.12 or newer.)
-- **Choices your module gives** (the schools of a municipality, a calendar, a place): see *List and
-  search settings* below.
-- **Rules on what is typed** (MirrorDash 0.13 or newer): `"required": ["url"]` beside `properties` (and in a
-  list setting's `items`), `minimum`/`maximum` on a number, `minLength`/`maxLength` on text, and `pattern`
-  with `pattern_message` for a format:
-  `{"type": "string", "pattern": "([01]\\d|2[0-3]):[0-5]\\d", "pattern_message": "A time like 13:00"}`. The admin
-  page points at a broken one before saving, and the mirror refuses to save it. The pattern must match the
-  whole value; an empty value breaks only `required` (`false` and `[]` are values).
-- **A setting only for one choice** (the settings of the source picked): give it
-  `"show_if": {"source": ["immich"]}`, naming another setting of the same form (a dropdown, a text
-  box, or a switch with `[true]` or `[false]`) and the values it shows for; several keys must all match. Hidden, it keeps its saved value:
-  `config["immich_url"]` is there whatever is picked. Prefer it to a nested `"type": "object"` per
-  choice, which moves the keys and hides a `lan-url` or password inside it from the core. Example on
-  `/design#forms`. (MirrorDash 0.14 or newer; older ones show every field.)
-- **Settings in a section** (advanced ones, say): give each field `"group": "Advanced"`. The admin page
-  draws the fields with the same group in one section that opens with a click, where the first of them
-  is. Only the form changes: the keys stay where they were. (MirrorDash 0.14 or newer.)
+**One rule picks the box: the `type`, changed by the `format`.** Each setting has a `type`, a `default`, a
+`title` and a `description`. The mirror hands your module every setting's `default` until the owner saves
+another value (MirrorDash 0.14 or newer), so write each default once, in the schema, and read
+`config["city"]`. The top `title` is the module's name in the admin page, `description` the line under it.
+
+| You want | Write | The owner sees |
+| :--- | :--- | :--- |
+| Text | `"type": "string"` | a text box |
+| Several lines of text | `"type": "string", "format": "textarea"` | a big text box |
+| A number | `"type": "integer"` (or `"number"`) | a number box |
+| A number on a slider | `+ "format": "slider", "minimum": 0, "maximum": 100` (`"step"` optional) | a slider |
+| Yes or no | `"type": "boolean"` | a switch |
+| One of a few choices | `"enum": ["list", "grid"], "enum_titles": ["Rows", "Side by side"]` | a dropdown |
+| Several of a few choices | `"type": "array", "items": {"type": "string", "enum": [...]}` | boxes to tick |
+| A list the owner fills in | `"type": "array", "items": {"type": "object", "properties": {...}}` | rows to add, fold and move |
+| A secret (key, token) | `"format": "password"` | dots, with Show |
+| An address at home | `"format": "lan-url"` | a box; your module may reach only these addresses at home |
+| A colour | `"format": "color"` | a colour picker (swatches in a list's row) |
+| A Lucide icon | `"format": "icon"` | a box suggesting the names, the icon drawn beside it |
+| A time | `"format": "time"` | `HH:MM`, or blank |
+| Photos the owner uploads | `{"format": "files", "accept": "image", "max_files": 500}` (no `type`, no `default`) | an upload button |
+| Choices from outside (schools, places) | `"type": "object", "format": "list"` or `"search"` | a dropdown, or a box with suggestions (below) |
+| A rule on what is typed | `"required": ["url"]` beside `properties`; `minimum`/`maximum`, `minLength`/`maxLength`, `pattern` + `pattern_message` | the error before saving; the mirror refuses to save it |
+| A setting only for one choice | `"show_if": {"source": ["immich"]}` (a switch: `[true]`) | it shows only while that setting has one of the values |
+| Settings out of the way | `"group": "Advanced"` on each | a section that opens with a click |
+
+Every row is on `http://localhost:8000/design#forms`, drawn with its JSON beside it: copy from there.
+
+- **The key's name never changes the box:** a setting named `token` is a text box until it says
+  `"format": "password"`. `mirrordash-sdk validate` warns about a secret-looking key without it, an `enum`
+  without `enum_titles` (the owner would read `open_meteo` as "Open meteo"), a setting without a default,
+  and a keyword or format it doesn't know (a typo the admin page would pass over in silence).
+- **What `config` holds:** each setting at its saved value or its default. A `lan-url` never saved is `""`
+  (its default is only a hint in the form), a list or search choice never made is `{}`. A setting without
+  a default is missing: read it with `config.get(...)`.
+- **Hidden by `show_if`**, a setting keeps its saved value: `config["immich_url"]` is there whatever is picked.
+  Name another setting beside it (a dropdown, a text box or a switch); with several, all must match.
+- **Prefer `show_if` and `group` to a nested `"type": "object"`**: a nested object moves the keys
+  (`config["advanced"]["timeout"]`), and the mirror misses a `password` or `lan-url` inside one (backups, the
+  home network). `validate` warns.
 - **Don't add these yourself:** `enabled`, `position`, `carousel_group`, `carousel_interval`,
   `max_width`, `max_height`, `z_index`, `opacity`, `show_in_privacy` and `schedule`. The mirror adds them
   to every module's form.
-- When the user changes a setting, the mirror restarts your module with the new values.
+- When the owner saves, the mirror restarts your module with the new values.
 - **The admin page is in English only**: write titles, descriptions and the errors below in English.
   `translations/` (part 7) are for what the mirror shows.
 

@@ -41,32 +41,33 @@ class $class_name:
     keep_running = False
 
     def __init__(self, config):
-        # config: this module's settings from the admin page (config_schema.json), plus what the mirror adds.
+        # config: this module's settings from the admin page (config_schema.json), each at its default until the
+        # owner saves another, plus what the mirror adds.
         # The mirror's helpers (self.render_template, self.translate, self.fetch_json, self.fetch, self.gpio, self.expose)
         # are added after __init__: use them from run_loop.
         self.config = config
         self.name = "$package_name"
-        self.interval = config.get("interval", 600)
-        self.layout = config.get("layout", "list")  # ── Settings ── a dropdown: rows or a grid
+        self.interval = config["interval"]
+        self.layout = config["layout"]  # ── Settings ── a dropdown: rows or a grid
         self.changed = asyncio.Event()  # set: render() again at once, not at the next interval
 
         # ── Fetching data ──
-        self.api_key = config.get("api_key", "")
-        self.location = config.get("location", "")
+        self.api_key = config["api_key"]
+        self.location = config["location"]
         self.update_now = False  # Home Assistant's Update now: the next fetch calls even if the answer is young
 
         # ── Global settings ── the same for every module: language, time zone, units, location
         self.time_format = config.get("globals", {}).get("time_format", "24h")
 
         # ── A device at home ── the module reaches the home network only at "format": "lan-url" addresses
-        self.device_url = config.get("device_url", "")
+        self.device_url = config["device_url"]
 
         # ── Saving files ── data_dir is kept and backed up, cache_dir may be cleared; each copy has its own
         self.state_file = os.path.join(config["data_dir"], "state.json") if config.get("data_dir") else None
         self.state = self.load_state()
 
         # ── Your own web address ── POST http://mirrordash.local<api_path>/value, with the Token setting
-        self.token = config.get("token", "")
+        self.token = config["token"]
         self.api_path = config.get("api_path", "")
         self.router = APIRouter()
         self.router.post("/value")(self.on_value)
@@ -78,7 +79,7 @@ class $class_name:
             # Another module's public messages, the same way: self.event_bus.subscribe("mirrordash_x.y", ...)
 
         # ── GPIO pins of your own ── a relay the mirror's button switches
-        self.relay_pin = config.get("relay_pin", 0)
+        self.relay_pin = config["relay_pin"]
         self.relay = None
         self.relay_on = False
         self.gpio_error = None

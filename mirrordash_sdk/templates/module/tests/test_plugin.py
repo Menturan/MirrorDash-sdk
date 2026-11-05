@@ -1,9 +1,12 @@
+import json
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import HTTPException
 
+from $package_name import plugin
 from $package_name.plugin import $class_name
 
 # Each test is marked with the part of plugin.py it checks: delete it with that part.
@@ -14,9 +17,15 @@ class Answer(tuple):
     fetched_at = datetime(2026, 1, 1, 9, 30)
 
 
+SCHEMA = json.loads((Path(plugin.__file__).parent / "config_schema.json").read_text())
+# What the mirror hands a module for the settings never saved: their defaults (a lan-url's is only a hint)
+DEFAULTS = {key: "" if prop.get("format") == "lan-url" else prop["default"]
+            for key, prop in SCHEMA["properties"].items() if "default" in prop}
+
+
 def make_module(tmp_path=None, **settings):
     """The module as the mirror sets it up, with the mirror's helpers replaced by fakes."""
-    config = {"api_key": "my-key", "location": "Oslo", **settings}
+    config = {**DEFAULTS, "api_key": "my-key", "location": "Oslo", **settings}
     if tmp_path:
         config["data_dir"] = str(tmp_path)
     module = $class_name(config)

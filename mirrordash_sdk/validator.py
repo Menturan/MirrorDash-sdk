@@ -5,6 +5,8 @@ import sys
 from datetime import date
 from pathlib import Path
 
+from mirrordash_sdk.schema_checks import schema_warnings
+
 CHOICE_KEY = re.compile(r"^[a-z0-9_]{1,64}$")  # the core's choices.py SETTING_KEY: the method's name is made from it
 
 
@@ -221,6 +223,14 @@ def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
                 print(f"  [!] Warning: these settings look secret but show in plain text: {unmasked}")
                 print('      Add "format": "password" to each so the admin page hides what is typed.')
                 has_warnings = True
+            # Misspelt keywords and formats, enums without words, defaults missing, show_if naming nothing
+            if setting_warnings := schema_warnings(properties):
+                print("  [!] Warning: config_schema.json settings to fix:")
+                for line in setting_warnings:
+                    print(f"      {line}")
+                has_warnings = True
+            else:
+                print("  [✓] config_schema.json settings use only keywords and formats the admin page knows")
             # What the module shows in Home Assistant (MQTT): read by the core's own rules, which leave out
             # what they don't take (MirrorDash 0.10.0 or newer)
             exposes = schema_data.get("exposes")
