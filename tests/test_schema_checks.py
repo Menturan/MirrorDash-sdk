@@ -20,8 +20,7 @@ def test_each_mistake_is_named():
         "d": {"type": "integer", "default": 1, "format": "slider"},           # a slider without its bounds
         "e": {"type": "string"},                                              # no default
         "f": {"type": "string", "default": "", "show_if": {"nope": ["x"]}},   # show_if naming nothing
-        "g": {"type": "object", "properties": {"key": {"type": "string", "default": "", "format": "password"}}},
     })
-    for start in ("a:", "b:", "c:", "d:", "e:", "f:", "g.key:"):
+    for start in ("a:", "b:", "c:", "d:", "e:", "f:"):
         assert any(line.startswith(start) for line in warnings), start
-    assert len(warnings) == 7
+    assert len(warnings) == 6

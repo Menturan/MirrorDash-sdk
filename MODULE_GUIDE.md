@@ -648,7 +648,7 @@ another value (MirrorDash 0.14 or newer), so write each default once, in the sch
 | Yes or no | `"type": "boolean"` | a switch |
 | One of a few choices | `"enum": ["list", "grid"], "enum_titles": ["Rows", "Side by side"]` | a dropdown |
 | Several of a few choices | `"type": "array", "items": {"type": "string", "enum": [...]}` | boxes to tick |
-| A list the owner fills in | `"type": "array", "items": {"type": "object", "properties": {...}}` | rows to add, fold and move |
+| A list the owner fills in | `"type": "array", "items": {"type": "object", "properties": {...}}` | rows to add, fold and move, each with any box in this table (not files) |
 | A secret (key, token) | `"format": "password"` | dots, with Show |
 | An address at home | `"format": "lan-url"` | a box; your module may reach only these addresses at home |
 | A colour | `"format": "color"` | a colour picker (swatches in a list's row) |
@@ -672,8 +672,10 @@ Every row is on `http://localhost:8000/design#forms`, drawn with its JSON beside
 - **Hidden by `show_if`**, a setting keeps its saved value: `config["immich_url"]` is there whatever is picked.
   Name another setting beside it (a dropdown, a text box or a switch); with several, all must match.
 - **Prefer `show_if` and `group` to a nested `"type": "object"`**: a nested object moves the keys
-  (`config["advanced"]["timeout"]`), and the mirror misses a `password` or `lan-url` inside one (backups, the
-  home network). `validate` warns.
+  (`config["advanced"]["timeout"]`), the others keep them where they are.
+- **A list's rows** get the same boxes as the form, `show_if` (naming a field of the same row) and `group`
+  too; a `lan-url` in a row opens that address to your module, and a backup without a password leaves out a
+  `password` in a row (MirrorDash 0.14 or newer).
 - **Don't add these yourself:** `enabled`, `position`, `carousel_group`, `carousel_interval`,
   `max_width`, `max_height`, `z_index`, `opacity`, `show_in_privacy` and `schedule`. The mirror adds them
   to every module's form.
