@@ -660,8 +660,8 @@ self.city = config.get("city", "Stockholm")
   page points at a broken one before saving, and the mirror refuses to save it. The pattern must match the
   whole value; an empty value breaks only `required` (`false` and `[]` are values).
 - **A setting only for one choice** (the settings of the source picked): give it
-  `"show_if": {"source": ["immich"]}`, naming another setting of the same form (a dropdown or a text
-  box) and the values it shows for; several keys must all match. Hidden, it keeps its saved value:
+  `"show_if": {"source": ["immich"]}`, naming another setting of the same form (a dropdown, a text
+  box, or a switch with `[true]` or `[false]`) and the values it shows for; several keys must all match. Hidden, it keeps its saved value:
   `config["immich_url"]` is there whatever is picked. Prefer it to a nested `"type": "object"` per
   choice, which moves the keys and hides a `lan-url` or password inside it from the core. Example on
   `/design#forms`. (MirrorDash 0.14 or newer; older ones show every field.)
