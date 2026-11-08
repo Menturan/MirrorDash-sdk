@@ -676,7 +676,7 @@ Every row is on `http://localhost:8000/design#forms`, drawn with its JSON beside
 - **A list's rows** get the same boxes as the form, `show_if` (naming a field of the same row) and `group`
   too; a `lan-url` in a row opens that address to your module, and a backup without a password leaves out a
   `password` in a row (MirrorDash 0.14 or newer).
-- **Don't add these yourself:** `enabled`, `position`, `carousel_group`, `carousel_interval`,
+- **Don't add these yourself:** `instance_name` (the owner's name for one, MirrorDash 0.16 or newer), `enabled`, `position`, `carousel_group`, `carousel_interval`,
   `max_width`, `max_height`, `z_index`, `opacity`, `show_in_privacy` and `schedule`. The mirror adds them
   to every module's form.
 - When the owner saves, the mirror restarts your module with the new values.

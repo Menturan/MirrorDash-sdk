@@ -111,7 +111,7 @@ Provide a `config_schema.json` next to `plugin.py` to allow the user to modify s
 - Rules on what the owner types are plain JSON Schema keywords: `required` (beside `properties`, and in a list setting's `items`), `minimum`/`maximum`, `minLength`/`maxLength`, `pattern` (matches the whole value) with `pattern_message` (the words for the owner). The browser and the save check them (MirrorDash 0.13).
 - A Lucide icon name gets `"format": "icon"`: the admin page suggests names as the owner types and draws the icon (MirrorDash 0.11.0; older shows a text field).
 - Files the owner uploads (photos) get `"format": "files"` with `"accept": "image"` (no `type`, no `default`); nothing goes into `config`, the module reads them from its cache folder (MirrorDash 0.12).
-- Don't declare `enabled`, `position`, `carousel_group`, `carousel_interval`, `max_width`, `max_height`, `z_index`, `opacity`, `show_in_privacy` or `schedule`: the core adds them to every module.
+- Don't declare `instance_name`, `enabled`, `position`, `carousel_group`, `carousel_interval`, `max_width`, `max_height`, `z_index`, `opacity`, `show_in_privacy` or `schedule`: the core adds them to every module.
 - `self.render_template` / `self.translate` don't exist yet inside `__init__`; use them from `render` or `run_loop`.
 
 ---
