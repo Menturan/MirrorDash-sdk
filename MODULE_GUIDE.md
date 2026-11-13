@@ -969,8 +969,8 @@ its times, or privacy mode without *Shown in Privacy Mode*. A carousel's turn do
         await (self.play() if shown and self.autoplay else self.stop())
 ```
 
-**Playing a video.** The mirror gives your video its place; your module brings the player. Put an element
-with `data-video-window` on your card where the video goes, sized with CSS, and run your player inside
+**Playing a video.** The mirror plays it for you: you give it an address and a place. Put an element
+with `data-video-window` on your card where the video goes, sized with CSS, and ask for the video inside
 `self.video_window()`:
 
 ```html
@@ -978,22 +978,43 @@ with `data-video-window` on your card where the video goes, sized with CSS, and 
 ```
 
 ```python
-async with self.video_window(hz=50) as window:
-    player = await asyncio.create_subprocess_exec("/usr/bin/python3", "-I", PLAYER, url, window.app_id)
-    await player.wait()
+async with self.video_window(url=self.url, output="jack", volume=0.3, hz=50) as video:
+    if await video.started():                # the first picture is on the screen
+        self.status = "playing"
+        self.changed.set()                   # render() shows it at once
+    await video.finished.wait()              # it ended, failed or was stopped by the mirror
+    if video.failed:
+        self.status = f"Couldn't play: {video.reason}"   # then wait and try again, as Radio does
+        self.changed.set()
 ```
 
-- Inside the block, a window with the app id `window.app_id` lands over the element (`window.rect` is
-  where, in screen pixels), the screen runs at 50 Hz if it can (European TV is 25 or 50 frames a second
-  and judders at 60 Hz), and the other modules update once a minute. All of it ends with the block.
-- `fullscreen=True`: no element needed; the player opens its window fullscreen (`window.fullscreen`).
-- The mirror has GStreamer with the Raspberry Pi's H.264 decoder and its Python bindings for the
-  system's Python (`/usr/bin/python3`; your module's own Python doesn't have them), so a player is a
-  small script your module runs: `GLib.set_prgname(window.app_id)` gives its window the app id, and
-  `playbin3` with `waylandsink` plays the stream. Stop it (`player.terminate()`) when your module stops.
-- One video window at a time; a second waits for the first. Streams with DRM can't play. In an HLS
-  stream, remove the subtitle renditions from the playlist: with them, the first frame waits some 18 s.
-- The window's place is taken when the block starts.
+- `url`: an http or https address of a stream or file (H.264 video; HLS playlists work and are cut down
+  to 720p without their subtitles, which would delay the picture by some 18 s). Nothing else plays:
+  not `file:`, not an address on the mirror or your home network. The mirror says why with a
+  `RuntimeError` when the call is refused.
+- `output`: `"jack"` (the 3.5 mm jack, the default) or `"hdmi"` (the screen's speakers, if it has any; it
+  plays without an error to one that has none, so let the owner choose, as Radio's `output` setting does).
+  `volume`: 0 to 1, GStreamer's linear scale, so give it a curve like Radio's `cubic()`. 0 plays silently
+  but keeps the sound chain, which a live stream needs.
+- `fullscreen=True`: no element needed; the picture covers the screen, and no card is updated at all
+  until it ends (the page is covered and stands still).
+- `hz=50`: the screen runs at 50 Hz if it can (European TV is 25 or 50 frames a second and judders at 60 Hz).
+- Inside the block the window lands over the element, and the other modules update once a minute. All
+  of it ends with the block. One video window at a time; a second waits.
+- `video` says how it goes: `await video.started()` (True when the picture shows, False if the video
+  ended first), `video.playing` and `video.finished` (`asyncio.Event`s), `video.failed` (an error, not the
+  end of the stream or a stop) and `video.reason` (`"end of stream"`, `"its card is hidden"`, `"the
+  screen is resting"` or the error). The video ending doesn't leave the block: you do, when you have
+  decided what comes next.
+- The mirror ends the video by itself when your card is hidden (schedule, Privacy Mode), when the screen
+  starts to fade out, when the stream hangs or stalls for some 15 seconds, and when your module stops.
+  `on_shown(False)` tells you at the same time, so leave the block there too.
+- **Why the mirror, not your module, runs the player:** your module runs without access to the video
+  decoder and the screen. That is also why this is a call and not a script of your own.
+- The window's place is taken when the block starts; a card that moves meanwhile leaves the video where
+  it was. Tell the owner to give the video card a screen position of its own (for example bottom right,
+  where other cards grow upwards). A card in a carousel doesn't work: the window ignores the slide.
+- Streams with DRM can't play, and there are no subtitles.
 
 **Your own web addresses.** A sensor, a phone shortcut or Home Assistant can call your module directly.
 Give the class a `router` (FastAPI's `APIRouter`, already on the mirror) and the mirror serves it at
@@ -1203,7 +1224,7 @@ Errors from your module start with its name, for example `mirrordash.modules.mir
 | `self.translate("key", "default")` | A text from `translations/`. |
 | `await self.fetch_json(url, headers=…, params=…, timeout=10, max_age=…)` | Fetches JSON; gives back `(data, error)`. See [part 5](#5-fetching-data). |
 | `await self.fetch(url, …)` | The same for anything that isn't JSON (RSS, ICS, XML); `data` is bytes. |
-| `async with self.video_window(fullscreen=False, hz=None) as window:` | Places your player's window (app id `window.app_id`) over the card's `data-video-window` element, or fullscreen. See [part 9](#9-hardware-video-web-addresses-and-home-assistant). |
+| `async with self.video_window(url=…, output="jack", volume=1.0, fullscreen=False, hz=None) as video:` | The mirror plays `url` in a window over the card's `data-video-window` element, or fullscreen; `video` says how it goes. See [part 9](#9-hardware-video-web-addresses-and-home-assistant). |
 | `async with self.video_is_playing():` | For a module that shows moving pictures some other way: meanwhile the other modules update once a minute. |
 | `await self.expose("now_playing", value)` | A value of something `config_schema.json`'s `"exposes"` declares, in Home Assistant if the owner shares it. Commands come to your `on_control(name, value)`. See [part 9](#9-hardware-video-web-addresses-and-home-assistant). |
 | `lines = await self.gpio([27], output=True)` | Free GPIO header pins from the mirror: `lines.get(pin)`, `lines.set(pin, 1)`, `async for e in lines.events()`, `lines.close()`. Options: `output`, `initial`, `pull` (`"up"`, `"down"`, `"off"`), `edge` (`"rising"`, `"falling"`, `"both"`), `active_low`, `debounce_ms`. See [part 9](#9-hardware-video-web-addresses-and-home-assistant). |
@@ -1216,8 +1237,8 @@ A `router` (FastAPI `APIRouter`) gives your module its own web addresses. See [p
 `async def on_control(self, name, value)` gets Home Assistant's commands for what you expose. See [part 9](#9-hardware-video-web-addresses-and-home-assistant).
 `async def on_shown(self, shown)` hears when your card comes on the screen and when it goes. See [part 9](#9-hardware-video-web-addresses-and-home-assistant).
 
-`fetch_json` and the component library need MirrorDash 0.5 or newer, `video_window` and
-`video_is_playing` 0.8.0, `router`, `api_path`, `"format": "lan-url"` and `gpio` 0.9.1, `public=True` 0.9.4,
+`fetch_json` and the component library need MirrorDash 0.5 or newer, `video_is_playing` 0.8.0, `video_window` 0.8.0 (the
+call as written here, with `url`, from the version after 0.16), `router`, `api_path`, `"format": "lan-url"` and `gpio` 0.9.1, `public=True` 0.9.4,
 `exposes`, `expose` and `on_control` 0.10.0, `"format": "icon"` 0.11.0 (an older mirror shows a plain text
 field), `answer.headers`, `"preview"`, `"format": "files"`, the `background` and `foreground` positions
 (`--md-layer-size`), `on_shown` and sound 0.12 (sound with the OS image after 0.11.0), the rules on what is typed, `"format": "list"` and `"search"` 0.13 (an older
