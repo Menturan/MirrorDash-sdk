@@ -142,6 +142,8 @@ What it does, from the bottom up:
 - There is no loop to write: the mirror calls `render()`, shows what it returns, waits `interval` seconds
   (600 = 10 minutes) and starts over. If `render()` fails, the error is logged and it's tried again at the
   next round.
+- If `render()` returns an empty string, the card is hidden entirely (no box, no gap between the other
+  cards) until it next returns content: that is how a module says it has nothing to show right now.
 - `__init__()` reads the module's settings from `config`. The mirror's own location (latitude and
   longitude) comes from the mirror's global settings.
 
