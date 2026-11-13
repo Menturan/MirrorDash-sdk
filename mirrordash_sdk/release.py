@@ -2,7 +2,8 @@
 
 Mirrors offer a module's newest GitHub Release, and show the version in its pyproject.toml. This
 sets both from one number, so they never differ: version in pyproject.toml, commit, tag vX.Y.Z,
-push, and the GitHub Release (with the `gh` tool, or a link to make it by hand).
+push, the GitHub Release and the `mirrordash-module` topic on the repository, which mirrors search for
+(with the `gh` tool, or what to do by hand).
 """
 import re
 import shutil
@@ -14,6 +15,8 @@ import click
 from .validator import validate_module
 
 VERSION_LINE = re.compile(r'^version = "([^"]+)"$', re.MULTILINE)
+TOPIC = "mirrordash-module"
+BY_HAND = f"On the repository page, About -> Topics, add '{TOPIC}' (mirrors only list repositories named mirrordash-* with it)."
 
 
 class Stop(click.ClickException):
@@ -97,6 +100,11 @@ def release_module(path: Path, version: str | None, dry_run: bool = False) -> No
     elif shutil.which("gh"):
         run("gh", "release", "create", tag, "--title", tag, "--generate-notes", change=True)
         click.echo(f"\n{tag} is released. Mirrors offer it as an update on the module's card.")
+        try:  # idempotent; the release is out already, so a failure here only asks for the step by hand
+            run("gh", "repo", "edit", "--add-topic", TOPIC, change=True)
+        except Stop:
+            click.echo(f"The topic '{TOPIC}' couldn't be set. {BY_HAND}")
     else:
         click.echo(f"\n{tag} is pushed. Last step, the GitHub Release (mirrors only see releases):")
         click.echo(f"  open {repo_url}/releases/new?tag={tag} and press 'Publish release'.")
+        click.echo(f"And the topic mirrors search for: {BY_HAND}")

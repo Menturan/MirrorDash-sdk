@@ -1040,7 +1040,8 @@ It checks the files, the entry point, the settings and the README, and says what
 A module is shared through GitHub. Every mirror can install it from there, and finds it by itself.
 
 1. **Name the repository `mirrordash-<name>`**, for example `mirrordash-outside`, and make it public.
-   Mirrors search GitHub for that prefix.
+   Mirrors list a repository only when its name starts with `mirrordash-` and it has the topic
+   `mirrordash-module` (step 4 adds the topic).
 2. **Write a short description** in the repository's **About** box on GitHub (the gear next to
    "About"). The mirror's module list shows it.
 3. **Create the repository on GitHub** (empty: no README or license; the module has an MIT `LICENSE` in
@@ -1063,9 +1064,10 @@ A module is shared through GitHub. Every mirror can install it from there, and f
    uvx mirrordash-sdk release 0.1.0
    ```
    It checks the module, runs its tests, asks you to confirm, then tags the version `v0.1.0`, pushes it
-   and makes the **GitHub Release**. That last step needs the [`gh`](https://cli.github.com/) tool
-   (log in once with `gh auth login`); without it, the command prints a link where you press
-   **Publish release**.
+   and makes the **GitHub Release**, then puts the topic `mirrordash-module` on the repository. Those last
+   steps need the [`gh`](https://cli.github.com/) tool (log in once with `gh auth login`); without it, the
+   command prints a link where you press **Publish release**, and says to add the topic yourself
+   (repository page, **About**, **Topics**, `mirrordash-module`).
 
 Now your module shows up under **Modules** in every mirror's admin page, and anyone can install it with
 one click. They can also paste its address (`git+https://github.com/<you>/mirrordash-outside.git`)

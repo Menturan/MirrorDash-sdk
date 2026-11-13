@@ -31,7 +31,7 @@ uvx mirrordash-sdk release 1.0.0                       # a new version mirrors c
 
 ## Share your module
 
-Push it to GitHub once, then run `uvx mirrordash-sdk release 1.0.0` for every version. It sets the version in `pyproject.toml`, tags it `v1.0.0`, pushes, and makes the **GitHub Release** (with the [`gh`](https://cli.github.com/) tool, or it gives you the link). Mirrors install the module from its Git URL under **Admin → Modules**, and offer updates when you make a new release. Nothing needs to be built or uploaded anywhere else. Details: [MODULE_GUIDE.md, part 11](https://github.com/Menturan/MirrorDash-sdk/blob/master/MODULE_GUIDE.md#11-sharing-your-module).
+Push it to GitHub once, then run `uvx mirrordash-sdk release 1.0.0` for every version. It sets the version in `pyproject.toml`, tags it `v1.0.0`, pushes, makes the **GitHub Release** and puts the `mirrordash-module` topic on the repository, which mirrors need to list it (with the [`gh`](https://cli.github.com/) tool, or it tells you what to do by hand). Mirrors install the module from its Git URL under **Admin → Modules**, and offer updates when you make a new release. Nothing needs to be built or uploaded anywhere else. Details: [MODULE_GUIDE.md, part 11](https://github.com/Menturan/MirrorDash-sdk/blob/master/MODULE_GUIDE.md#11-sharing-your-module).
 
 ## Learn more
 
