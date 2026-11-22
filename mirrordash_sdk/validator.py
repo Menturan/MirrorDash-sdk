@@ -5,7 +5,7 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from mirrordash_sdk.schema_checks import schema_warnings
+from mirrordash_sdk.schema_checks import CORE_FIELDS, schema_warnings
 
 CHOICE_KEY = re.compile(r"^[a-z0-9_]{1,64}$")  # the core's choices.py SETTING_KEY: the method's name is made from it
 
@@ -205,9 +205,7 @@ def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
         if schema_data:
             properties = schema_data.get("properties", {})
             # The core adds these to every module's settings form; a module redeclaring them is ignored
-            core_fields = ["instance_name", "enabled", "position", "carousel_group", "carousel_interval", "max_width", "max_height", "z_index", "opacity",
-                           "show_in_privacy", "schedule"]
-            redeclared = [p for p in core_fields if p in properties]
+            redeclared = [p for p in CORE_FIELDS if p in properties]
             if redeclared:
                 print(f"  [!] Warning: config_schema declares settings the core already provides: {redeclared}")
                 print("      Remove them; the admin form ignores them and uses the core's own fields.")

@@ -661,6 +661,7 @@ another value (MirrorDash 0.14 or newer), so write each default once, in the sch
 | A rule on what is typed | `"required": ["url"]` beside `properties`; `minimum`/`maximum`, `minLength`/`maxLength`, `pattern` + `pattern_message` | the error before saving; the mirror refuses to save it |
 | A setting only for one choice | `"show_if": {"source": ["immich"]}` (a switch: `[true]`) | it shows only while that setting has one of the values |
 | Settings out of the way | `"group": "Advanced"` on each | a section that opens with a click |
+| The same for every instance (an account, a server) | + `"shared": true` | the owner sets it once; an instance may use its own |
 
 Every row is on `http://localhost:8000/design#forms`, drawn with its JSON beside it: copy from there.
 
@@ -684,6 +685,27 @@ Every row is on `http://localhost:8000/design#forms`, drawn with its JSON beside
 - When the owner saves, the mirror restarts your module with the new values.
 - **The admin page is in English only**: write titles, descriptions and the errors below in English.
   `translations/` (part 7) are for what the mirror shows.
+
+### Settings shared by every instance
+
+The owner can add your module more than once (three Home Assistant cards). A setting that is the same for
+all of them, like a server's address or an account's token, gets `"shared": true` (MirrorDash 0.19 or newer):
+
+```json
+"url":   {"type": "string", "format": "lan-url", "title": "Home Assistant Address", "shared": true},
+"token": {"type": "string", "format": "password", "title": "Access Token", "shared": true}
+```
+
+- **The owner types it once.** Each instance's form shows it with a note ("Shared by all 3 instances") and an
+  **Own value** switch: off, the instance uses the shared value and changing it changes them all; on, that
+  instance keeps a value of its own.
+- **Your module sees nothing new:** `self.config["url"]` is the instance's own value, else the shared one, else the
+  `default`. When the shared value changes, every instance of your module restarts, as for any saved change.
+- **Where it works:** on a text (any `format` but `list`, `search` and `files`), a number, a switch or a
+  dropdown, at the top level of the settings. Not in a list's row or a nested object, not on a list of boxes,
+  and not on the core's own settings. Elsewhere the mirror ignores it, and `mirrordash-sdk validate` warns.
+- **Share what belongs to an account or a server,** not what belongs to one card (which city, which entity):
+  only you know which is which, so the owner can't choose.
 
 ### List and search settings
 
@@ -1149,7 +1171,7 @@ A `router` (FastAPI `APIRouter`) gives your module its own web addresses. See [p
 `exposes`, `expose` and `on_control` 0.10.0, `"format": "icon"` 0.11.0 (an older mirror shows a plain text
 field), `answer.headers`, `"preview"`, `"format": "files"`, the `background` and `foreground` positions
 (`--md-layer-size`), `on_shown` and sound 0.12 (sound with the OS image after 0.11.0), the rules on what is typed, `"format": "list"` and `"search"` 0.13 (an older
-mirror shows an empty group for the last two); `mirrordash-sdk dev-setup` installs
+mirror shows an empty group for the last two), `"shared": true` 0.19 (an older mirror shows the setting in each instance's form, as any other); `mirrordash-sdk dev-setup` installs
 the right version.
 
 ---

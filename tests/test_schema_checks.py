@@ -24,3 +24,24 @@ def test_each_mistake_is_named():
     for start in ("a:", "b:", "c:", "d:", "e:", "f:"):
         assert any(line.startswith(start) for line in warnings), start
     assert len(warnings) == 6
+
+
+def test_shared_works_on_a_top_level_single_value_only():
+    assert schema_warnings({
+        "url": {"type": "string", "format": "lan-url", "default": "", "shared": True},
+        "token": {"type": "string", "format": "password", "default": "", "shared": True},
+        "unit": {"type": "string", "enum": ["c", "f"], "enum_titles": ["C", "F"], "default": "c", "shared": True},
+        "count": {"type": "integer", "default": 1, "shared": True},
+        "on": {"type": "boolean", "default": True, "shared": True},
+    }) == []
+    warnings = schema_warnings({
+        "a": {"type": "array", "default": [], "shared": True, "items": {"type": "object", "properties": {
+            "inner": {"type": "string", "shared": True}}}},                    # a list, and a row's setting
+        "b": {"type": "object", "properties": {"inner": {"type": "string", "default": "", "shared": True}}},  # in an object
+        "c": {"format": "files", "accept": "image", "shared": True},          # files
+        "d": {"type": "object", "format": "list", "shared": True},            # a choice from the module
+        "e": {"type": "string", "default": "", "shared": "yes"},              # not true
+        "position": {"type": "string", "default": "", "shared": True},        # the core's own
+    })
+    assert [line.split(":")[0] for line in warnings if "shared" in line] == ["a", "a[].inner", "b.inner", "c", "d", "e", "position"]
+    assert not any("unknown keyword" in line for line in warnings)  # "shared" is a keyword it knows
