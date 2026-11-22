@@ -11,9 +11,9 @@ CHOICE_KEY = re.compile(r"^[a-z0-9_]{1,64}$")  # the core's choices.py SETTING_K
 
 
 def choice_setting_problems(properties: dict, plugin_content: str) -> list[str]:
-    """What keeps a list or search setting ("format": "list" / "search") from working: a key the method name
-    can't be made from, a type other than object, or no async settings_<format>_<key> in plugin.py. Settings
-    in a list setting's items count too."""
+    """What keeps a list, search or fields setting ("format": "list" / "search" / "fields") from working: a key
+    the method name can't be made from, a type other than object, or no async settings_<format>_<key> in
+    plugin.py. Settings in a list setting's items count too."""
     fields = [(key, prop) for key, prop in properties.items() if isinstance(prop, dict)]
     for prop in list(properties.values()):
         items = prop.get("items") if isinstance(prop, dict) else None
@@ -22,13 +22,13 @@ def choice_setting_problems(properties: dict, plugin_content: str) -> list[str]:
     problems = []
     for key, prop in fields:
         kind = prop.get("format")
-        if kind not in ("list", "search"):
+        if kind not in ("list", "search", "fields"):
             continue
         if not CHOICE_KEY.match(key):
             problems.append(f'the {kind} setting "{key}" needs a key of a-z, 0-9 and _ only: its method is named from it')
             continue
         if prop.get("type") != "object":
-            problems.append(f'the {kind} setting "{key}" needs "type": "object" (it is saved as {{"id", "name"}})')
+            problems.append(f'the {kind} setting "{key}" needs "type": "object" (it is saved as an object)')
         args = "self, item, query" if kind == "search" else "self, item"
         if not re.search(rf"async\s+def\s+settings_{kind}_{key}\s*\(", plugin_content):
             problems.append(f'the {kind} setting "{key}" needs "async def settings_{kind}_{key}({args})" in plugin.py')
@@ -252,7 +252,7 @@ def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
                         has_warnings = True
                     if taken and not dropped:
                         print(f"  [✓] exposes {len(taken)} entit{'y' if len(taken) == 1 else 'ies'} to Home Assistant")
-            # List and search settings (MirrorDash 0.13): choices from settings_list_<key> / settings_search_<key>
+            # List and search settings (MirrorDash 0.13) and fields settings (0.19): settings_list_<key> / settings_search_<key> / settings_fields_<key>
             choice_problems = choice_setting_problems(properties, plugin_content)
             for problem in choice_problems:
                 print(f"  [✗] {problem}")

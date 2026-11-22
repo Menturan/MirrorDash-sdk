@@ -6,14 +6,14 @@ a setting without a default, "shared" where the core ignores it."""
 KEYWORDS = {"type", "default", "title", "description", "enum", "enum_titles", "enumNames", "format", "items",
             "properties", "required", "minimum", "maximum", "minLength", "maxLength", "pattern", "pattern_message",
             "step", "uniqueItems", "show_if", "group", "accept", "max_files", "shared"}
-FORMATS = {"password", "lan-url", "icon", "color", "textarea", "time", "slider", "files", "list", "search"}
+FORMATS = {"password", "lan-url", "icon", "color", "textarea", "time", "slider", "files", "list", "search", "fields"}
 # The core adds these to every module's settings form; a module redeclaring them is ignored
 CORE_FIELDS = ["instance_name", "enabled", "position", "carousel_group", "carousel_interval", "max_width", "max_height",
                "z_index", "opacity", "show_in_privacy", "schedule"]
 # "shared": true (MirrorDash 0.19) works on a single value at the top level, and on none of these
 SHAREABLE_TYPES = {"string", "integer", "number", "boolean"}
-NOT_SHAREABLE_FORMATS = {"files", "list", "search"}
-NEEDS_NO_DEFAULT = {"files", "list", "search"}  # files live in the cache folder; a choice arrives as {}
+NOT_SHAREABLE_FORMATS = {"files", "list", "search", "fields"}
+NEEDS_NO_DEFAULT = {"files", "list", "search", "fields"}  # files live in the cache folder; a choice or fields arrive as {}
 
 
 def schema_warnings(properties: dict, path: str = "", in_list: bool = False) -> list[str]:

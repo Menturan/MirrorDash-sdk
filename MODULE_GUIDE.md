@@ -658,6 +658,7 @@ another value (MirrorDash 0.14 or newer), so write each default once, in the sch
 | A time | `"format": "time"` | `HH:MM`, or blank |
 | Photos the owner uploads | `{"format": "files", "accept": "image", "max_files": 500}` (no `type`, no `default`) | an upload button |
 | Choices from outside (schools, places) | `"type": "object", "format": "list"` or `"search"` | a dropdown, or a box with suggestions (below) |
+| Boxes only your module can know (a device's readings) | `"type": "object", "format": "fields"` | the boxes your module returns, drawn as the form's own (below) |
 | A rule on what is typed | `"required": ["url"]` beside `properties`; `minimum`/`maximum`, `minLength`/`maxLength`, `pattern` + `pattern_message` | the error before saving; the mirror refuses to save it |
 | A setting only for one choice | `"show_if": {"source": ["immich"]}` (a switch: `[true]`) | it shows only while that setting has one of the values |
 | Settings out of the way | `"group": "Advanced"` on each | a section that opens with a click |
@@ -752,6 +753,55 @@ async def settings_search_place(self, item, query):
   class in a short-lived process for the form: `self.fetch_json` goes to the network, the screen counts as
   on, and nothing reaches the screen, the GPIO pins or the event bus. It can't reach the home network until
   the module is saved.
+
+### Fields from the module
+
+When the boxes themselves depend on what your module finds out (the readings an entity has, the options of an
+account), mark the setting `"format": "fields"`, with `"type": "object"`, and write one method for it, named
+after the setting's key (MirrorDash 0.19 or newer). It can sit at the top of the settings or in a list's row:
+
+```json
+"extras": {"type": "object", "format": "fields", "title": "Extra Readings", "description": "Ticked ones are shown."}
+```
+
+```python
+async def settings_fields_extras(self, item):
+    """The boxes to show. item: the other fields of the setting's list item (or the whole form)."""
+    if not item.get("entity_id"):
+        raise ValueError("Enter the entity ID first")
+    readings = await self.read_all(item["entity_id"])        # {"battery": "87 %", "humidity": "41 %"}
+    if not readings:
+        return {}
+    keys = sorted(readings)
+    return {"shown": {"type": "array", "title": "Show", "default": keys,
+                      "items": {"type": "string", "enum": keys,
+                                "enum_titles": [f"{k} ({readings[k]})" for k in keys]}}}
+```
+
+- **What it gets:** the same as a list setting's method: `item` is the other fields of the row (or the whole
+  form outside a list; the setting itself is left out) and `self.config` is the form as it is now, not yet
+  saved, with the shared settings filled in. It is asked when the form opens and again when another field of the
+  same row (outside a list: of the form) changes, never when the owner changes one of the boxes it gave.
+- **What it gives:** a dict of ordinary settings, written as in `config_schema.json`, each drawn as the form's own
+  box (this table: a switch, a number, a slider, a dropdown, a colour, an icon, a time, a text, boxes to tick),
+  with `show_if` and `group` among them. Allowed: `string`, `integer`, `number`, `boolean`, and `array` of
+  `string` with an `enum` (boxes to tick). Left out: objects, lists of rows, and the `list`, `search`, `files`,
+  `fields` and `lan-url` formats. A key is letters, digits, `-` and `_` and doesn't start with `__`. At most 100
+  settings; every text is cut to 200 characters. A fields setting can't be `shared`.
+- **What is saved:** under the setting's own key, only the settings you gave the last time:
+  `{"extras": {"shown": ["battery"]}}`. Read it with `self.config["extras"].get("shown", [])`. Values have the
+  type their setting says (a switch is a boolean, a number a number, boxes a list of texts). A setting you no
+  longer give, an unticked box and a choice you no longer list are gone after the next save; the mirror keeps no
+  memory of them. Never saved, it is `{}`.
+- **Defaults:** a `default` in what you return applies only to a setting with no saved value: a new row, or a
+  setting that wasn't there when the owner last saved. A box that appears later is not ticked for them.
+- **When it can't:** `raise ValueError("Enter the entity ID first")`: the text is shown under the field and what
+  was saved is kept as it is. Any other error shows a general message, with yours in the log; so does an answer
+  that is not a dict, or one that takes more than 15 seconds.
+- **Nothing to set:** return `{}`. The form says "Nothing to set for this one." and `{}` is saved.
+- **The key** is lowercase letters, digits and `_` (`extra_readings` → `settings_fields_extra_readings`).
+  `mirrordash-sdk validate` checks the key, the type and the method. Before the module is saved it is asked in
+  the same short-lived process as a list's (see above).
 
 **The mirror's global settings** are the same for all modules. Use them instead of asking the user again:
 
@@ -1171,7 +1221,7 @@ A `router` (FastAPI `APIRouter`) gives your module its own web addresses. See [p
 `exposes`, `expose` and `on_control` 0.10.0, `"format": "icon"` 0.11.0 (an older mirror shows a plain text
 field), `answer.headers`, `"preview"`, `"format": "files"`, the `background` and `foreground` positions
 (`--md-layer-size`), `on_shown` and sound 0.12 (sound with the OS image after 0.11.0), the rules on what is typed, `"format": "list"` and `"search"` 0.13 (an older
-mirror shows an empty group for the last two), `"shared": true` 0.19 (an older mirror shows the setting in each instance's form, as any other); `mirrordash-sdk dev-setup` installs
+mirror shows an empty group for the last two), `"shared": true` 0.19 (an older mirror shows the setting in each instance's form, as any other), `"format": "fields"` 0.19 (an older mirror shows an empty group); `mirrordash-sdk dev-setup` installs
 the right version.
 
 ---

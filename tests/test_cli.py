@@ -118,6 +118,38 @@ def test_validate_wants_the_method_of_a_list_or_search_setting():
         assert result.exit_code == 0, result.output
 
 
+def test_validate_wants_the_method_of_a_fields_setting():
+    """A fields setting (also in a list setting's items) needs an object type, a key the method can be named
+    from, and async def settings_fields_<key>(self, item) in plugin.py; it needs no default."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["create-module", "mirrordash-test"])
+        schema_file = Path("mirrordash-test/mirrordash_test/config_schema.json")
+        schema = json.loads(schema_file.read_text())
+        schema["properties"].update({
+            "entities": {"type": "array", "items": {"type": "object", "properties": {
+                "extras": {"type": "object", "format": "fields", "title": "Extras"}}}},
+            "options": {"type": "string", "format": "fields"},
+            "Bad-Key": {"type": "object", "format": "fields"}})
+        schema_file.write_text(json.dumps(schema))
+        result = runner.invoke(main, ["validate", "mirrordash-test"])
+        assert result.exit_code != 0
+        assert 'needs "async def settings_fields_extras(self, item)" in plugin.py' in result.output
+        assert 'the fields setting "options" needs "type": "object"' in result.output
+        assert 'the fields setting "Bad-Key" needs a key of a-z, 0-9 and _ only' in result.output
+        assert "unknown format" not in result.output and "no default" not in result.output.split("extras")[-1]
+
+        del schema["properties"]["Bad-Key"]
+        schema["properties"]["options"] = {"type": "object", "format": "fields", "shared": True}
+        schema_file.write_text(json.dumps(schema))
+        plugin = Path("mirrordash-test/mirrordash_test/plugin.py")
+        plugin.write_text(plugin.read_text() + "\n    async def settings_fields_extras(self, item):\n        return {}\n"
+                          "\n    async def settings_fields_options(self, item):\n        return {}\n")
+        result = runner.invoke(main, ["validate", "mirrordash-test"])
+        assert result.exit_code == 0, result.output
+        assert 'options: "shared" is ignored by the mirror: a fields setting can\'t be shared' in result.output
+
+
 @patch("subprocess.run")
 def test_register_module(mock_run):
     res = MagicMock()
