@@ -7,6 +7,7 @@ from pathlib import Path
 
 from mirrordash_sdk.schema_checks import CORE_FIELDS, schema_warnings
 
+MIN_VERSION = re.compile(r"^\d+(\.\d+){0,2}$")  # "0.12": a plain minimum, not a specifier like ">=0.12"
 CHOICE_KEY = re.compile(r"^[a-z0-9_]{1,64}$")  # the core's choices.py SETTING_KEY: the method's name is made from it
 
 
@@ -200,6 +201,15 @@ def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
                 print("  [!] Warning: No config_schema.json or inline config_schema attribute found.")
                 print("      The module will only get the standard settings (enabled, position, …).")
                 has_warnings = True
+
+        # The oldest MirrorDash the module needs (the mirror refuses an install or update on an older one)
+        if isinstance(schema_data, dict) and "requires_mirrordash" in schema_data:
+            minimum = schema_data["requires_mirrordash"]
+            if isinstance(minimum, str) and MIN_VERSION.match(minimum):
+                print(f"  [✓] requires_mirrordash: MirrorDash {minimum} or newer")
+            else:
+                print(f'  [✗] "requires_mirrordash" must be a version like "0.12" (the oldest MirrorDash that works), not {minimum!r}')
+                has_errors = True
 
         # Validate schema details if config_schema.json is present
         if schema_data:

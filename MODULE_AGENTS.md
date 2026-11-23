@@ -99,6 +99,7 @@ All module designs follow the mirror's design system (the component library at `
 Provide a `config_schema.json` next to `plugin.py` to allow the user to modify settings from the Admin panel UI. The core reads it as a file and never imports the module, so a `config_schema` in the class isn't read.
 
 - The `type` picks the box, the `format` changes it; never the key's name. The table in MODULE_GUIDE part 6 and `/design#forms` show every one.
+- Set `"requires_mirrordash": "<version>"` at the top of `config_schema.json` to the oldest MirrorDash that has every feature the module uses (the "MirrorDash X" notes in MODULE_GUIDE part 13): the mirror refuses an install or update on an older one. A plain version like `"0.14"`, not `>=0.14`; the template sets it.
 - Define title, description and a default for every setting: the mirror hands the module each default until the owner saves another (MirrorDash 0.14), so read `config["key"]` and don't repeat the default in code.
 - If providing a set of selections, use `enum` with `enum_titles` (the words the owner reads) to render a dropdown.
 - A slider is `"format": "slider"` with `minimum` and `maximum`; without the format those two are rules on a number box (MirrorDash 0.14).

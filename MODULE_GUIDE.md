@@ -1224,6 +1224,25 @@ field), `answer.headers`, `"preview"`, `"format": "files"`, the `background` and
 mirror shows an empty group for the last two), `"shared": true` 0.19 (an older mirror shows the setting in each instance's form, as any other), `"format": "fields"` 0.19 (an older mirror shows an empty group); `mirrordash-sdk dev-setup` installs
 the right version.
 
+**Say which MirrorDash your module needs.** When you use something from this list, put the oldest MirrorDash
+that has it at the top of `config_schema.json`, as a plain version (not `>=0.12`):
+
+```json
+{
+  "title": "Outside",
+  "requires_mirrordash": "0.13",
+  "type": "object",
+  "properties": {}
+}
+```
+
+A mirror on an older MirrorDash then refuses to install or update to this release and says *Needs MirrorDash 0.13
+or newer: update MirrorDash first*; the version that runs there stays as it is. Without the field there is
+no check (the module installs, and breaks where a feature is missing). A value that isn't a version is refused
+too. `mirrordash-sdk validate` checks it, and `mirrordash-sdk create-module` sets it to what the template needs.
+The mirror reads it from the release it has just downloaded, so an update list shows *Needs MirrorDash X* only
+after the first refused try.
+
 ---
 
 ## Words used in this guide

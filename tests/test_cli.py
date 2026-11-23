@@ -256,3 +256,20 @@ def test_start_server_interrupt(mock_run):
         result = runner.invoke(main, ["start", "--path", "."])
         assert result.exit_code == 0
         assert "MirrorDash server stopped." in result.output
+
+
+def test_validate_checks_requires_mirrordash():
+    """The template names the MirrorDash it needs; a value that isn't a plain version (a specifier) fails."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        runner.invoke(main, ["create-module", "mirrordash-test"])
+        schema_file = Path("mirrordash-test/mirrordash_test/config_schema.json")
+        schema = json.loads(schema_file.read_text())
+        assert schema["requires_mirrordash"] == "0.14"
+        assert "requires_mirrordash: MirrorDash 0.14 or newer" in runner.invoke(main, ["validate", "mirrordash-test"]).output
+        for bad in (">=0.12", 12, "latest"):
+            schema_file.write_text(json.dumps({**schema, "requires_mirrordash": bad}))
+            result = runner.invoke(main, ["validate", "mirrordash-test"])
+            assert result.exit_code != 0 and '"requires_mirrordash" must be a version like "0.12"' in result.output
+        schema_file.write_text(json.dumps({k: v for k, v in schema.items() if k != "requires_mirrordash"}))
+        assert runner.invoke(main, ["validate", "mirrordash-test"]).exit_code == 0  # no field: no check
