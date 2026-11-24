@@ -103,6 +103,7 @@ Provide a `config_schema.json` next to `plugin.py` to allow the user to modify s
 - Define title, description and a default for every setting: the mirror hands the module each default until the owner saves another (MirrorDash 0.14), so read `config["key"]` and don't repeat the default in code.
 - If providing a set of selections, use `enum` with `enum_titles` (the words the owner reads) to render a dropdown.
 - A slider is `"format": "slider"` with `minimum` and `maximum`; without the format those two are rules on a number box (MirrorDash 0.14).
+- Keep a setting's `description` to one short sentence (about 120 characters at most); put anything longer (examples, payload formats, edge cases) in `"help"`, which the form shows behind an info button next to the title. Older MirrorDash versions ignore `help`.
 - A setting for one choice only gets `"show_if": {"source": ["immich"]}`; settings out of the way get `"group": "Advanced"`. Prefer them to a nested object (MirrorDash 0.14).
 - Run `mirrordash-sdk validate`: it warns about unknown keywords and formats, an enum without titles and a setting without a default.
 - API keys, tokens and passwords get `"format": "password"`, so the admin page hides what is typed (`mirrordash-sdk validate` warns otherwise).

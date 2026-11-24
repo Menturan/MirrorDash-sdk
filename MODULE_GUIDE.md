@@ -660,12 +660,15 @@ another value (MirrorDash 0.14 or newer), so write each default once, in the sch
 | Choices from outside (schools, places) | `"type": "object", "format": "list"` or `"search"` | a dropdown, or a box with suggestions (below) |
 | Boxes only your module can know (a device's readings) | `"type": "object", "format": "fields"` | the boxes your module returns, drawn as the form's own (below) |
 | A rule on what is typed | `"required": ["url"]` beside `properties`; `minimum`/`maximum`, `minLength`/`maxLength`, `pattern` + `pattern_message` | the error before saving; the mirror refuses to save it |
+| A longer explanation | `"help": "Find the ID under Settings, Devices & services."` beside a one-line `description` | an info button after the title opens it in a popup (plain text; older MirrorDash versions ignore it) |
 | A setting only for one choice | `"show_if": {"source": ["immich"]}` (a switch: `[true]`) | it shows only while that setting has one of the values |
 | Settings out of the way | `"group": "Advanced"` on each | a section that opens with a click |
 | The same for every instance (an account, a server) | + `"shared": true` | the owner sets it once; an instance may use its own |
 
 Every row is on `http://localhost:8000/design#forms`, drawn with its JSON beside it: copy from there.
 
+- **Keep `description` to one short sentence** (about 120 characters at most) and put anything longer (examples,
+  payload formats, edge cases) in `help`. The form stays light, and the owner opens the rest when needed.
 - **The key's name never changes the box:** a setting named `token` is a text box until it says
   `"format": "password"`. `mirrordash-sdk validate` warns about a secret-looking key without it, an `enum`
   without `enum_titles` (the owner would read `open_meteo` as "Open meteo"), a setting without a default,
