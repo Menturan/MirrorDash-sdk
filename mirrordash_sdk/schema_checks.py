@@ -5,7 +5,7 @@ a setting without a default, "shared" where the core ignores it."""
 # Every keyword the admin page reads in a setting (MirrorDash 0.14): JSON Schema's own and ours
 KEYWORDS = {"type", "default", "title", "description", "enum", "enum_titles", "enumNames", "format", "items",
             "properties", "required", "minimum", "maximum", "minLength", "maxLength", "pattern", "pattern_message",
-            "step", "uniqueItems", "show_if", "group", "accept", "max_files", "shared", "help"}
+            "step", "uniqueItems", "show_if", "group", "accept", "max_files", "shared", "help", "copy_value"}
 FORMATS = {"password", "lan-url", "icon", "color", "textarea", "time", "slider", "files", "list", "search", "fields"}
 # The core adds these to every module's settings form; a module redeclaring them is ignored
 CORE_FIELDS = ["instance_name", "enabled", "position", "carousel_group", "carousel_interval", "max_width", "max_height",

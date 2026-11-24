@@ -662,6 +662,7 @@ another value (MirrorDash 0.14 or newer), so write each default once, in the sch
 | A rule on what is typed | `"required": ["url"]` beside `properties`; `minimum`/`maximum`, `minLength`/`maxLength`, `pattern` + `pattern_message` | the error before saving; the mirror refuses to save it |
 | A longer explanation | `"help": "Find the ID under Settings, Devices & services."` beside a one-line `description` | an info button after the title opens it in a popup (plain text; older MirrorDash versions ignore it) |
 | A setting only for one choice | `"show_if": {"source": ["immich"]}` (a switch: `[true]`) | it shows only while that setting has one of the values |
+| A text shown under a switch | `"copy_value": "mymodule.{entity_id}"` on a `boolean` (`{entity_id}` is the value of another setting of the same form or list row; `<entity_id>` while it is empty) | while the switch is on, a "Shared as" row shows the text with a copy button, e.g. an event name the owner must type into another module |
 | Settings out of the way | `"group": "Advanced"` on each | a section that opens with a click |
 | The same for every instance (an account, a server) | + `"shared": true` | the owner sets it once; an instance may use its own |
 

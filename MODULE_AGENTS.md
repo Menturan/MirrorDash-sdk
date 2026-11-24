@@ -105,6 +105,7 @@ Provide a `config_schema.json` next to `plugin.py` to allow the user to modify s
 - A slider is `"format": "slider"` with `minimum` and `maximum`; without the format those two are rules on a number box (MirrorDash 0.14).
 - Keep a setting's `description` to one short sentence (about 120 characters at most); put anything longer (examples, payload formats, edge cases) in `"help"`, which the form shows behind an info button next to the title. Older MirrorDash versions ignore `help`.
 - A setting for one choice only gets `"show_if": {"source": ["immich"]}`; settings out of the way get `"group": "Advanced"`. Prefer them to a nested object (MirrorDash 0.14).
+- A switch can show a text the owner must copy elsewhere (such as the name of an event it sends): `"copy_value": "mymodule.{entity_id}"` on the `boolean`; `{key}` is the value of a sibling setting (same form or list row). While the switch is on, a "Shared as" row shows it with a copy button. Older MirrorDash versions ignore it.
 - Run `mirrordash-sdk validate`: it warns about unknown keywords and formats, an enum without titles and a setting without a default.
 - API keys, tokens and passwords get `"format": "password"`, so the admin page hides what is typed (`mirrordash-sdk validate` warns otherwise).
 - An address on the home network (Home Assistant, a device) gets `"format": "lan-url"`: the module runs sandboxed and reaches the home network only at such addresses.
