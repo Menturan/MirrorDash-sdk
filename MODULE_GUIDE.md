@@ -905,6 +905,35 @@ event_bus.publish("mirrordash_garage.door", {"open": True}, public=True)
   a key or a password in it.
 - Up to 20 a second; more are dropped.
 
+**Readings: a shared shape for measurements.** Modules can swap measurements without knowing each
+other, if they all use the same shape:
+
+- A module that shares a measurement (a temperature, humidity, a power reading) publishes it as a
+  public event with `{"value": <number>, "unit": "<unit>"}`. It may add other keys (like `name` or
+  `kind`). Receivers ignore keys they don't know. Write units the way Home Assistant does: `"°C"`,
+  `"°F"`, `"%"`, `"W"`, `"kWh"`, `"lx"`.
+- Something that isn't a number (a switch, a door) sends `{"state": "on"}` instead, without `value`.
+- Send it on every update, not only when it changes. Events aren't kept, so a module that starts
+  later gets a value within one round.
+- A receiver lets the owner type the event name in a setting. The setting is the allow-list. Subscribe
+  to exactly that name and check the data (a real number, a unit you know, a sane range). Never trust it.
+- Examples: Home Assistant sends `mirrordash_homeassistant.sensor.outdoor_temperature` for each entity
+  ticked "Share with Other Modules". Weather's "Outdoor Temperature From" setting takes such a name and
+  shows that value instead of the provider's current temperature.
+
+```python
+# Sender: share the reading on every update.
+event_bus.publish("mirrordash_garage.outdoor", {"value": -2.5, "unit": "°C"}, public=True)
+
+# Receiver, in __init__: the owner typed the name in a setting.
+event_bus.subscribe(config["outdoor_temperature_event"], self.on_outdoor)
+
+def on_outdoor(self, data):  # a method of your module's class
+    value = data.get("value") if isinstance(data, dict) else None
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and data.get("unit") == "°C" and -90 < value < 60:
+        self.outdoor_c = value
+```
+
 **While a video plays.** A video beside the modules stays smooth only while the rest of the screen
 stands still, because every redraw of the page costs the Raspberry Pi a video frame. So while a module
 plays a video, the mirror updates once a minute, on the minute:
