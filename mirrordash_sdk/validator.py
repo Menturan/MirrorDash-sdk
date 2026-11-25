@@ -5,7 +5,7 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from mirrordash_sdk.schema_checks import CORE_FIELDS, schema_errors, schema_warnings
+from mirrordash_sdk.schema_checks import CORE_FIELDS, preferred_width_problem, schema_errors, schema_warnings
 
 MIN_VERSION = re.compile(r"^\d+(\.\d+){0,2}$")  # "0.12": a plain minimum, not a specifier like ">=0.12"
 CHOICE_KEY = re.compile(r"^[a-z0-9_]{1,64}$")  # the core's choices.py SETTING_KEY: the method's name is made from it
@@ -210,6 +210,14 @@ def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
             else:
                 print(f'  [✗] "requires_mirrordash" must be a version like "0.12" (the oldest MirrorDash that works), not {minimum!r}')
                 has_errors = True
+
+        # The width the module wants on an Auto card (the owner's % always wins)
+        if isinstance(schema_data, dict) and "preferred_width" in schema_data:
+            if problem := preferred_width_problem(schema_data["preferred_width"]):
+                print(f"  [✗] {problem}")
+                has_errors = True
+            else:
+                print(f"  [✓] preferred_width: {schema_data['preferred_width']}")
 
         # Validate schema details if config_schema.json is present
         if schema_data:

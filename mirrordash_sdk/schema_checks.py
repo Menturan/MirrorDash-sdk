@@ -13,13 +13,17 @@ FORMATS = {"password", "lan-url", "icon", "color", "textarea", "time", "slider",
 # The core adds these to every module's settings form; a module redeclaring them is ignored
 CORE_FIELDS = ["instance_name", "enabled", "position", "carousel_group", "carousel_interval", "show_in_privacy",
                "schedule"]
-# Core settings a module may declare only to give its own default (a wide module: width_percent 60; radio: no heading)
-STANDARD_DEFAULT_KEYS = ["show_header", "heading", "width_percent", "height_percent", "opacity_percent"]
+# Core settings a module may declare only to give its own default (radio: no heading; news: overflow fade)
+STANDARD_DEFAULT_KEYS = ["show_header", "heading", "opacity_percent", "overflow"]
+OVERFLOW_VALUES = ["scroll", "fade"]
+# The size settings are the owner's alone; a module states its width wish with the top-level "preferred_width"
+SIZE_KEYS = ["width_percent", "height_percent"]
+PREFERRED_WIDTH = re.compile(r"^(\d+(\.\d+)?|\.\d+)rem$")
 STANDARD_DEFAULT_ALLOWED = {"default", "type", "title", "description"}
 # Core settings that no longer exist, and what replaced them
 REMOVED_CORE_KEYS = {
-    "max_width": "use the core's width_percent (the owner sets it; a module may give a default)",
-    "max_height": "use the core's height_percent (the owner sets it; a module may give a default)",
+    "max_width": "use \"preferred_width\" (a top-level key such as \"28rem\"; the owner sets the width in %)",
+    "max_height": "the owner sets the height in the core's height_percent; a module can't give a default",
     "z_index": "stacking follows the module order, there is no layer setting",
     "opacity": "use the core's opacity_percent",
 }
@@ -40,6 +44,11 @@ def schema_errors(properties: dict, path: str = "") -> list[str]:
             continue
         if not path and key in REMOVED_CORE_KEYS:
             errors.append(f"{name}: the core no longer has this setting; {REMOVED_CORE_KEYS[key]}. Remove it")
+        if not path and key in SIZE_KEYS:
+            errors.append(f"{name}: a module can't give a default for the owner's size; use preferred_width "
+                          f"(a top-level key such as \"28rem\") for the width. Remove it")
+        if not path and key == "overflow" and prop.get("default") not in OVERFLOW_VALUES:
+            errors.append(f"{name}: the default must be one of {OVERFLOW_VALUES}, not {prop.get('default')!r}")
         if "unit" in prop and prop["unit"] not in UNITS:
             errors.append(f"{name}: unit must be one of {sorted(UNITS)}, not {prop['unit']!r}")
         if isinstance(prop.get("properties"), dict):
@@ -48,6 +57,13 @@ def schema_errors(properties: dict, path: str = "") -> list[str]:
         if isinstance(items, dict) and isinstance(items.get("properties"), dict):
             errors += schema_errors(items["properties"], f"{name}[].")
     return errors
+
+
+def preferred_width_problem(value) -> str | None:
+    """Why the top-level preferred_width is not a string like "28rem" (None when fine)."""
+    if isinstance(value, str) and PREFERRED_WIDTH.match(value) and float(value[:-3]) > 0:
+        return None
+    return f'"preferred_width" must be a string like "28rem" (a positive number and rem), not {value!r}'
 
 
 def schema_warnings(properties: dict, path: str = "", in_list: bool = False) -> list[str]:

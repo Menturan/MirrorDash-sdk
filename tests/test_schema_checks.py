@@ -1,4 +1,8 @@
-from mirrordash_sdk.schema_checks import schema_errors, schema_warnings
+from mirrordash_sdk.schema_checks import (
+    preferred_width_problem,
+    schema_errors,
+    schema_warnings,
+)
 
 
 def test_a_clean_schema_has_nothing_to_fix():
@@ -62,13 +66,13 @@ def test_unit_must_be_one_of_the_known_four():
 def test_the_removed_core_settings_are_errors_that_say_what_replaced_them():
     errors = schema_errors({key: {"type": "string", "default": ""} for key in ("max_width", "max_height", "z_index", "opacity")})
     assert len(errors) == 4
-    assert "width_percent" in errors[0] and "height_percent" in errors[1] and "module order" in errors[2] and "opacity_percent" in errors[3]
+    assert "preferred_width" in errors[0] and "height_percent" in errors[1] and "module order" in errors[2] and "opacity_percent" in errors[3]
     assert schema_errors({"row": {"type": "object", "properties": {"opacity": {"type": "integer"}}}}) == []  # only the top level is the core's
     assert not any("provides" in line for line in schema_warnings({"max_width": {"type": "string", "default": ""}}))
 
 
 def test_a_module_may_declare_a_standard_setting_only_for_its_default():
-    assert schema_warnings({"show_header": {"default": False}, "width_percent": {"default": 60},
+    assert schema_warnings({"show_header": {"default": False}, "overflow": {"default": "fade"},
                             "heading": {"type": "string", "default": "", "title": "x", "description": "y"}}) == []
     warnings = schema_warnings({"opacity_percent": {"type": "integer", "default": 80, "minimum": 10}})
     assert len(warnings) == 1 and warnings[0].startswith("opacity_percent:") and "default" in warnings[0]
@@ -111,3 +115,23 @@ def test_a_group_of_one_setting_is_a_warning():
     warnings = schema_warnings({"a": {"type": "string", "default": "", "group": "Advanced"},
                                 "b": {"type": "string", "default": ""}})
     assert len(warnings) == 1 and warnings[0].startswith("a:")
+
+
+def test_a_width_or_height_default_is_an_error_that_says_use_preferred_width():
+    errors = schema_errors({"width_percent": {"default": 60}, "height_percent": {"default": 40}})
+    assert len(errors) == 2 and all("preferred_width" in line for line in errors)
+    assert schema_errors({"row": {"type": "object", "properties": {"width_percent": {"type": "integer"}}}}) == []
+
+
+def test_overflow_is_a_module_default_of_scroll_or_fade():
+    assert schema_errors({"overflow": {"default": "fade"}}) == [] and schema_errors({"overflow": {"default": "scroll"}}) == []
+    assert len(schema_errors({"overflow": {"default": "hide"}})) == 1
+    assert len(schema_errors({"overflow": {}})) == 1
+    assert schema_warnings({"overflow": {"default": "fade"}}) == []
+
+
+def test_preferred_width_is_a_positive_number_of_rem():
+    for good in ("28rem", "12.5rem", "0.5rem", ".5rem"):
+        assert preferred_width_problem(good) is None
+    for bad in ("28", "28px", "0rem", "-3rem", "rem", "28 rem", 28, None, "1/3"):
+        assert "preferred_width" in preferred_width_problem(bad)

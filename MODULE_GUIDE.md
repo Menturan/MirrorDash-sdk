@@ -681,7 +681,7 @@ Every row is on `http://localhost:8000/design#forms`, drawn with its JSON beside
   `carousel_group`, `carousel_interval`, `show_in_privacy` and `schedule`. The mirror adds them to every
   module's form, together with the heading, size and opacity settings below.
   `max_width`, `max_height`, `z_index` and `opacity` are gone (`mirrordash-sdk validate` fails on them): size is
-  `width_percent` and `height_percent`, opacity is `opacity_percent`, and stacking follows the module order.
+  `width_percent` and `height_percent` (the owner's; a module states a wish with `preferred_width`), opacity is `opacity_percent`, and stacking follows the module order.
 - **Words for the form** (MirrorDash 0.21 or newer): a setting that picks how the module looks is `layout`,
   titled "Look"; a secret is titled "API key" or "Access token" (the service's name goes in the description);
   a unit goes in `"unit"`, never in the title ("Update interval", not "Update Interval (Seconds)");
@@ -695,29 +695,55 @@ Every module gets these settings from the core (MirrorDash 0.21 or newer), so do
 | :--- | :--- |
 | `show_header` | "Show heading": your template shows the title only `{% if show_header %}`. |
 | `heading` | "Heading text": the owner's own title; blank means yours. Write `{{ heading or translations.title }}`. |
-| `width_percent`, `height_percent` | The card's size, 0 (Auto) to 100 % of the usable screen. |
+| `width_percent`, `height_percent` | The card's size, 0 (Auto) to 100 % of the usable screen. The owner's alone: a module can't give a default (validate fails), it states `preferred_width` instead (below). |
 | `opacity_percent` | 10 to 100 %. |
+| `overflow` | "When it doesn't fit": `scroll` (default) or `fade` (below). |
 
 Your module may change the **default** of one of them by naming it in `config_schema.json` with a `default`
 and nothing else of substance (`type`, `title` and `description` are allowed, the core draws the field). The
 owner can always change it:
 
 ```json
-"show_header":   {"default": false},
-"width_percent": {"default": 60}
+"show_header": {"default": false},
+"overflow":    {"default": "fade"}
 ```
 
-A radio with no heading and a wide calendar are the examples. `mirrordash-sdk validate` warns when such an
+A radio with no heading and a news list that animates its own overflow are the examples. `mirrordash-sdk validate` warns when such an
 entry holds more than a default.
 
-**Card size rules.** Every card has a largest size, also on Auto: width 1/3 and height 1/2 of the usable
-screen (inside the safe margins). Content that doesn't fit fades out at the bottom. With a width set (by the
-owner or by your default) the card is exactly that wide. So your CSS must fill and adapt, never spread:
+**Preferred width.** A module thinks in content, the owner in screen. If your module reads badly when it is
+narrow (a calendar, a table), declare the width it wants as a top-level key of `config_schema.json`, next to
+`requires_mirrordash`:
+
+```json
+"preferred_width": "28rem"
+```
+
+It is a string of a positive number and `rem` (it follows the text size and the screen scale); anything else
+fails `mirrordash-sdk validate`. Only set it when the module needs a certain width; a clock or a one-line
+status is better without. How it plays out:
+
+| Owner's width | Card width |
+| :--- | :--- |
+| a % (Custom) | exactly that % of the usable screen; the owner's % always wins |
+| Auto, module has `preferred_width` | `min(preferred_width, 100 % of the usable screen)`, a definite width |
+| Auto, no `preferred_width` | shrinks to its content, at most 1/3 of the usable screen |
+
+Height is unchanged: Auto is at most 1/2 of the usable screen, Custom is the owner's %.
+
+**Your CSS fills the card and shrinks gracefully.** The card's width is definite (unless Auto without a
+`preferred_width`), so:
 
 - Use `max-width: 100%` and no fixed widths in px; let the content wrap.
-- Container queries and `cqi` units work only when the card has a definite width, so give the module a
-  `width_percent` default if you use them. On Auto the card shrinks to its content.
-- Height is the same: design for the card being cut short, with the most important rows first.
+- Fill the width, and use container queries (`@container (max-width: 20rem) { ... }`) or `cqi` units to drop
+  a column or shrink the type when the card gets narrow, down to a sensible minimum.
+- Design for the card being cut short in height too, with the most important rows first.
+
+**When it doesn't fit.** Content taller than the card is handled by the core's `overflow` setting, which the
+owner sees as "When it doesn't fit": `scroll` (the default) shows the top for a few seconds, scrolls slowly
+to the end, pauses, fades back to the top and repeats; `fade` fades the content out at the bottom. With
+reduced motion it fades. The `.module-header` stays put while the rest scrolls, so use that class for the
+heading. A module that animates its own overflow (a news ticker) sets `"overflow": {"default": "fade"}`.
 
 - When the owner saves, the mirror restarts your module with the new values.
 - **The admin page is in English only**: write titles, descriptions and the errors below in English.
