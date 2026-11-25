@@ -5,7 +5,7 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from mirrordash_sdk.schema_checks import CORE_FIELDS, schema_warnings
+from mirrordash_sdk.schema_checks import CORE_FIELDS, schema_errors, schema_warnings
 
 MIN_VERSION = re.compile(r"^\d+(\.\d+){0,2}$")  # "0.12": a plain minimum, not a specifier like ">=0.12"
 CHOICE_KEY = re.compile(r"^[a-z0-9_]{1,64}$")  # the core's choices.py SETTING_KEY: the method's name is made from it
@@ -231,6 +231,11 @@ def validate_module(path_str: str, exit_on_fail: bool = True) -> bool:
                 print(f"  [!] Warning: these settings look secret but show in plain text: {unmasked}")
                 print('      Add "format": "password" to each so the admin page hides what is typed.')
                 has_warnings = True
+            if setting_errors := schema_errors(properties):
+                print("  [✗] config_schema.json settings that break:")
+                for line in setting_errors:
+                    print(f"      {line}")
+                has_errors = True
             # Misspelt keywords and formats, enums without words, defaults missing, show_if naming nothing
             if setting_warnings := schema_warnings(properties):
                 print("  [!] Warning: config_schema.json settings to fix:")

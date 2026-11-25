@@ -159,14 +159,9 @@ The example also had a setting for an API key, which this module doesn't need. R
     "interval": {
       "type": "integer",
       "default": 600,
-      "title": "Update Interval (Seconds)",
+      "title": "Update interval",
+      "unit": "s",
       "description": "Time between updates."
-    },
-    "show_header": {
-      "type": "boolean",
-      "default": true,
-      "title": "Show Header",
-      "description": "Show or hide the module's title."
     }
   }
 }
@@ -188,7 +183,7 @@ Replace everything in `mirrordash_outside/templates/widget.html` with:
 ```html
 <div class="flex-column">
     {% if show_header %}
-    <h2 class="module-header">{{ translations.get("title", "Outside") }}</h2>
+    <h2 class="module-header">{{ heading or translations.get("title", "Outside") }}</h2>
     {% endif %}
     {% if data %}
     <span class="display-lg">{{ data.value }}</span>
@@ -233,14 +228,9 @@ page builds a form from it. Add a `show_wind` setting: replace everything in
     "interval": {
       "type": "integer",
       "default": 600,
-      "title": "Update Interval (Seconds)",
+      "title": "Update interval",
+      "unit": "s",
       "description": "Time between updates."
-    },
-    "show_header": {
-      "type": "boolean",
-      "default": true,
-      "title": "Show Header",
-      "description": "Show or hide the module's title."
     }
   }
 }
@@ -404,7 +394,7 @@ The most useful components:
 
 | Component | Use it for |
 | :--- | :--- |
-| `module-header` | The module's title, at the top. Wrap it in `{% if show_header %}` so users can hide it. |
+| `module-header` | The module's title, at the top. Write `{% if show_header %}<h2 class="module-header">{{ heading or translations.title }}</h2>{% endif %}`: the core draws the "Show heading" and "Heading text" settings, the owner's text wins over your title. |
 | `display-xl`, `display-lg` | One big number: a time, a temperature. |
 | `data-list` | Rows with a label on the left and a value on the right. Can show up/down values in color. |
 | `stats-grid` | Two or three values side by side, each with a small label. |
@@ -626,7 +616,7 @@ module gets the values in `config` (read them in `__init__`):
   "type": "object",
   "properties": {
     "city":      { "type": "string",  "default": "Stockholm", "title": "City", "description": "Which city to show." },
-    "api_key":   { "type": "string",  "default": "", "format": "password", "title": "API Key", "description": "Your key from the service." },
+    "api_key":   { "type": "string",  "default": "", "format": "password", "title": "API key", "description": "Your key from the service." },
     "show_wind": { "type": "boolean", "default": true, "title": "Show Wind", "description": "Show the wind speed." }
   }
 }
@@ -647,10 +637,12 @@ another value (MirrorDash 0.14 or newer), so write each default once, in the sch
 | Several lines of text | `"type": "string", "format": "textarea"` | a big text box |
 | A number | `"type": "integer"` (or `"number"`) | a number box |
 | A number on a slider | `+ "format": "slider", "minimum": 0, "maximum": 100` (`"step"` optional) | a slider |
+| A number with a unit | `"unit": "s"` (`"s"`, `"min"`, `"h"` or `"%"`; the value stays a number) | the unit after the box, so the title needs none |
+| A slider whose minimum means something | `"min_label": "Auto"` on a slider | the slider shows that text instead of the number at its minimum |
 | Yes or no | `"type": "boolean"` | a switch |
 | One of a few choices | `"enum": ["list", "grid"], "enum_titles": ["Rows", "Side by side"]` | a dropdown |
 | Several of a few choices | `"type": "array", "items": {"type": "string", "enum": [...]}` | boxes to tick |
-| A list the owner fills in | `"type": "array", "items": {"type": "object", "properties": {...}}` | rows to add, fold and move, each with any box in this table (not files) |
+| A list the owner fills in | `"type": "array", "items": {"type": "object", "title": "Station", "properties": {...}}` | rows to add, fold and move, each with any box in this table (not files); `items.title` names the button ("Add station") |
 | A secret (key, token) | `"format": "password"` | dots, with Show |
 | An address at home | `"format": "lan-url"` | a box; your module may reach only these addresses at home |
 | A colour | `"format": "color"` | a colour picker (swatches in a list's row) |
@@ -662,6 +654,7 @@ another value (MirrorDash 0.14 or newer), so write each default once, in the sch
 | A rule on what is typed | `"required": ["url"]` beside `properties`; `minimum`/`maximum`, `minLength`/`maxLength`, `pattern` + `pattern_message` | the error before saving; the mirror refuses to save it |
 | A longer explanation | `"help": "Find the ID under Settings, Devices & services."` beside a one-line `description` | an info button after the title opens it in a popup (plain text; older MirrorDash versions ignore it) |
 | A setting only for one choice | `"show_if": {"source": ["immich"]}` (a switch: `[true]`) | it shows only while that setting has one of the values |
+| A setting for everything but some choices | `"show_if": {"source": {"not": [""]}}` | it shows while that setting has none of the values (here: while it is not empty) |
 | A text shown under a switch | `"copy_value": "mymodule.{entity_id}"` on a `boolean` (`{entity_id}` is the value of another setting of the same form or list row; `<entity_id>` while it is empty) | while the switch is on, a "Shared as" row shows the text with a copy button, e.g. an event name the owner must type into another module |
 | Settings out of the way | `"group": "Advanced"` on each | a section that opens with a click |
 | The same for every instance (an account, a server) | + `"shared": true` | the owner sets it once; an instance may use its own |
@@ -684,9 +677,48 @@ Every row is on `http://localhost:8000/design#forms`, drawn with its JSON beside
 - **A list's rows** get the same boxes as the form, `show_if` (naming a field of the same row) and `group`
   too; a `lan-url` in a row opens that address to your module, and a backup without a password leaves out a
   `password` in a row (MirrorDash 0.14 or newer).
-- **Don't add these yourself:** `instance_name` (the owner's name for one, MirrorDash 0.16 or newer), `enabled`, `position`, `carousel_group`, `carousel_interval`,
-  `max_width`, `max_height`, `z_index`, `opacity`, `show_in_privacy` and `schedule`. The mirror adds them
-  to every module's form.
+- **Don't add these yourself:** `instance_name` (the owner's name for one, MirrorDash 0.16 or newer), `enabled`, `position`,
+  `carousel_group`, `carousel_interval`, `show_in_privacy` and `schedule`. The mirror adds them to every
+  module's form, together with the heading, size and opacity settings below.
+  `max_width`, `max_height`, `z_index` and `opacity` are gone (`mirrordash-sdk validate` fails on them): size is
+  `width_percent` and `height_percent`, opacity is `opacity_percent`, and stacking follows the module order.
+- **Words for the form** (MirrorDash 0.21 or newer): a setting that picks how the module looks is `layout`,
+  titled "Look"; a secret is titled "API key" or "Access token" (the service's name goes in the description);
+  a unit goes in `"unit"`, never in the title ("Update interval", not "Update Interval (Seconds)");
+  a group of one setting is no group, drop it. `mirrordash-sdk validate` warns about the last three.
+
+### Heading, size and defaults the core draws
+
+Every module gets these settings from the core (MirrorDash 0.21 or newer), so don't write them:
+
+| Setting | What it does |
+| :--- | :--- |
+| `show_header` | "Show heading": your template shows the title only `{% if show_header %}`. |
+| `heading` | "Heading text": the owner's own title; blank means yours. Write `{{ heading or translations.title }}`. |
+| `width_percent`, `height_percent` | The card's size, 0 (Auto) to 100 % of the usable screen. |
+| `opacity_percent` | 10 to 100 %. |
+
+Your module may change the **default** of one of them by naming it in `config_schema.json` with a `default`
+and nothing else of substance (`type`, `title` and `description` are allowed, the core draws the field). The
+owner can always change it:
+
+```json
+"show_header":   {"default": false},
+"width_percent": {"default": 60}
+```
+
+A radio with no heading and a wide calendar are the examples. `mirrordash-sdk validate` warns when such an
+entry holds more than a default.
+
+**Card size rules.** Every card has a largest size, also on Auto: width 1/3 and height 1/2 of the usable
+screen (inside the safe margins). Content that doesn't fit fades out at the bottom. With a width set (by the
+owner or by your default) the card is exactly that wide. So your CSS must fill and adapt, never spread:
+
+- Use `max-width: 100%` and no fixed widths in px; let the content wrap.
+- Container queries and `cqi` units work only when the card has a definite width, so give the module a
+  `width_percent` default if you use them. On Auto the card shrinks to its content.
+- Height is the same: design for the card being cut short, with the most important rows first.
+
 - When the owner saves, the mirror restarts your module with the new values.
 - **The admin page is in English only**: write titles, descriptions and the errors below in English.
   `translations/` (part 7) are for what the mirror shows.
@@ -709,6 +741,9 @@ all of them, like a server's address or an account's token, gets `"shared": true
 - **Where it works:** on a text (any `format` but `list`, `search` and `files`), a number, a switch or a
   dropdown, at the top level of the settings. Not in a list's row or a nested object, not on a list of boxes,
   and not on the core's own settings. Elsewhere the mirror ignores it, and `mirrordash-sdk validate` warns.
+- **`required` opens it:** when a shared setting is named in the schema's `required` and is still empty, the
+  shared block at the top of the settings sheet opens by itself (otherwise it is one folded row), so the owner
+  sees what is missing (MirrorDash 0.21 or newer).
 - **Share what belongs to an account or a server,** not what belongs to one card (which city, which entity):
   only you know which is which, so the owner can't choose.
 
@@ -836,7 +871,7 @@ languages next to it (`sv.json` for Swedish, `de.json` for German):
 
 The mirror picks the file for its language and falls back to English for anything missing.
 
-- **In `widget.html`:** `{{ translations.get("title", "Outside") }}`
+- **In `widget.html`:** `{{ heading or translations.get("title", "Outside") }}`
 - **In Python:** `self.translate("fetch_failed", "Couldn't update.")`
 
 The second value is used when the text is in no file at all.
@@ -1253,7 +1288,7 @@ Errors from your module start with its name, for example `mirrordash.modules.mir
 
 | Helper | What it does |
 | :--- | :--- |
-| `self.render_template("widget.html", **values)` | Fills in a template from `templates/` and gives back the HTML. The template also gets `translations` and `show_header`. |
+| `self.render_template("widget.html", **values)` | Fills in a template from `templates/` and gives back the HTML. The template also gets `translations`, `show_header` and `heading`. |
 | `self.translate("key", "default")` | A text from `translations/`. |
 | `await self.fetch_json(url, headers=…, params=…, timeout=10, max_age=…)` | Fetches JSON; gives back `(data, error)`. See [part 5](#5-fetching-data). |
 | `await self.fetch(url, …)` | The same for anything that isn't JSON (RSS, ICS, XML); `data` is bytes. |
@@ -1275,7 +1310,7 @@ call as written here, with `url`, from the version after 0.16), `router`, `api_p
 `exposes`, `expose` and `on_control` 0.10.0, `"format": "icon"` 0.11.0 (an older mirror shows a plain text
 field), `answer.headers`, `"preview"`, `"format": "files"`, the `background` and `foreground` positions
 (`--md-layer-size`), `on_shown` and sound 0.12 (sound with the OS image after 0.11.0), the rules on what is typed, `"format": "list"` and `"search"` 0.13 (an older
-mirror shows an empty group for the last two), `"shared": true` 0.19 (an older mirror shows the setting in each instance's form, as any other), `"format": "fields"` 0.19 (an older mirror shows an empty group); `mirrordash-sdk dev-setup` installs
+mirror shows an empty group for the last two), `"shared": true` 0.19 (an older mirror shows the setting in each instance's form, as any other), `"format": "fields"` 0.19 (an older mirror shows an empty group), `heading`, `show_header` as a core setting (a module's default for them) and the card size settings 0.21 (an older mirror draws no heading setting, so the template shows no custom text); `"unit"` and `"min_label"` and the `{"not": [...]}` form of `show_if` need no minimum, an older mirror ignores them; `mirrordash-sdk dev-setup` installs
 the right version.
 
 **Say which MirrorDash your module needs.** When you use something from this list, put the oldest MirrorDash

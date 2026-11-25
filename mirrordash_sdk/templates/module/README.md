@@ -6,7 +6,7 @@ $description
 
 1. Create an account at the service's website (link here).
 2. Copy your API key.
-3. On the mirror: **Modules → $title → API Key**, paste it and save.
+3. On the mirror: **Modules → $title → API key**, paste it and save.
 
 The key is only sent to the service, in a request header; the mirror never logs it.
 

@@ -2,14 +2,14 @@
   "$$schema": "http://json-schema.org/draft-07/schema#",
   "title": "$title",
   "description": "$description",
-  "requires_mirrordash": "0.14",
+  "requires_mirrordash": "0.21",
   "type": "object",
   "properties": {
     "api_key": {
       "type": "string",
       "format": "password",
       "default": "",
-      "title": "API Key",
+      "title": "API key",
       "description": "Your key from the service's website. The module's README says where to get one."
     },
     "location": {
@@ -21,7 +21,8 @@
     "interval": {
       "type": "integer",
       "default": 600,
-      "title": "Update Interval (Seconds)",
+      "title": "Update interval",
+      "unit": "s",
       "description": "Time between updates. Stay within the service's request limits."
     },
     "layout": {
@@ -29,14 +30,8 @@
       "default": "list",
       "enum": ["list", "grid"],
       "enum_titles": ["Rows", "Side by side"],
-      "title": "Layout",
+      "title": "Look",
       "description": "How the values are shown."
-    },
-    "show_header": {
-      "type": "boolean",
-      "default": true,
-      "title": "Show Header",
-      "description": "Show or hide the module's title."
     },
     "device_url": {
       "type": "string",
@@ -49,7 +44,7 @@
       "type": "string",
       "format": "password",
       "default": "",
-      "title": "Token",
+      "title": "Access token",
       "description": "Optional: lets a phone shortcut or Home Assistant send a value to the module (see its README). Empty: nobody can."
     },
     "relay_pin": {

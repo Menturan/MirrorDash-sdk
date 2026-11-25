@@ -1,14 +1,15 @@
-from mirrordash_sdk.schema_checks import schema_warnings
+from mirrordash_sdk.schema_checks import schema_errors, schema_warnings
 
 
 def test_a_clean_schema_has_nothing_to_fix():
     assert schema_warnings({
         "source": {"type": "string", "enum": ["a", "b"], "enum_titles": ["A", "B"], "default": "a", "title": "Source"},
         "url": {"type": "string", "format": "lan-url", "default": "", "show_if": {"source": ["b"]}, "group": "B"},
+        "user": {"type": "string", "default": "", "group": "B"},
         "volume": {"type": "integer", "format": "slider", "minimum": 0, "maximum": 100, "default": 30},
         "photos": {"format": "files", "accept": "image"},
         "school": {"type": "object", "format": "list"},
-        "feeds": {"type": "array", "default": [], "items": {"type": "object", "properties": {"name": {"type": "string"}}}},
+        "feeds": {"type": "array", "default": [], "items": {"type": "object", "title": "Feed", "properties": {"name": {"type": "string"}}}},
     }) == []
 
 
@@ -45,3 +46,68 @@ def test_shared_works_on_a_top_level_single_value_only():
     })
     assert [line.split(":")[0] for line in warnings if "shared" in line] == ["a", "a[].inner", "b.inner", "c", "d", "e", "position"]
     assert not any("unknown keyword" in line for line in warnings)  # "shared" is a keyword it knows
+
+
+def test_unit_must_be_one_of_the_known_four():
+    assert schema_errors({"a": {"type": "integer", "default": 1, "unit": "s"}}) == []
+    for unit in ("s", "min", "h", "%"):
+        assert schema_errors({"a": {"type": "integer", "default": 1, "unit": unit}}) == []
+    errors = schema_errors({"a": {"type": "integer", "default": 1, "unit": "px"},
+                            "b": {"type": "array", "default": [], "items": {"type": "object", "properties": {
+                                "c": {"type": "integer", "unit": "seconds"}}}}})
+    assert [line.split(":")[0] for line in errors] == ["a", "b[].c"]
+    assert not any("unknown keyword" in line for line in schema_warnings({"a": {"type": "integer", "default": 1, "unit": "s"}}))
+
+
+def test_the_removed_core_settings_are_errors_that_say_what_replaced_them():
+    errors = schema_errors({key: {"type": "string", "default": ""} for key in ("max_width", "max_height", "z_index", "opacity")})
+    assert len(errors) == 4
+    assert "width_percent" in errors[0] and "height_percent" in errors[1] and "module order" in errors[2] and "opacity_percent" in errors[3]
+    assert schema_errors({"row": {"type": "object", "properties": {"opacity": {"type": "integer"}}}}) == []  # only the top level is the core's
+    assert not any("provides" in line for line in schema_warnings({"max_width": {"type": "string", "default": ""}}))
+
+
+def test_a_module_may_declare_a_standard_setting_only_for_its_default():
+    assert schema_warnings({"show_header": {"default": False}, "width_percent": {"default": 60},
+                            "heading": {"type": "string", "default": "", "title": "x", "description": "y"}}) == []
+    warnings = schema_warnings({"opacity_percent": {"type": "integer", "default": 80, "minimum": 10}})
+    assert len(warnings) == 1 and warnings[0].startswith("opacity_percent:") and "default" in warnings[0]
+
+
+def test_min_label_is_for_sliders_and_show_if_takes_not():
+    assert schema_warnings({
+        "a": {"type": "integer", "format": "slider", "minimum": 0, "maximum": 9, "default": 0, "min_label": "Auto"},
+        "g": {"type": "string", "default": ""},
+        "b": {"type": "integer", "default": 5, "show_if": {"g": {"not": [""]}}},
+    }) == []
+    warnings = schema_warnings({
+        "a": {"type": "integer", "default": 0, "min_label": "Auto"},
+        "g": {"type": "string", "default": ""},
+        "b": {"type": "integer", "default": 5, "show_if": {"g": {"nope": [""]}}},
+        "c": {"type": "integer", "default": 5, "show_if": {"g": {"not": "x"}}},
+    })
+    assert [line.split(":")[0] for line in warnings] == ["a", "b", "c"]
+
+
+def test_an_array_of_objects_needs_items_title():
+    rows = {"properties": {"name": {"type": "string"}}}
+    assert schema_warnings({"a": {"type": "array", "default": [], "items": {"type": "object", "title": "Station", **rows}}}) == []
+    assert schema_warnings({"a": {"type": "array", "default": [], "items": {"type": "string", "enum": ["x"]}}}) == []
+    warnings = schema_warnings({"a": {"type": "array", "default": [], "items": {"type": "object", **rows}}})
+    assert len(warnings) == 1 and "Add Item" in warnings[0]
+
+
+def test_a_unit_in_a_title_is_a_warning():
+    for title in ("Update Interval (Seconds)", "Delay (s)", "Size (%)", "Width (px)", "Keep (hours)"):
+        warnings = schema_warnings({"a": {"type": "integer", "default": 1, "title": title}})
+        assert len(warnings) == 1 and "unit" in warnings[0], title
+    assert schema_warnings({"a": {"type": "integer", "default": 1, "title": "Update interval", "unit": "s"},
+                            "b": {"type": "string", "default": "", "title": "Name (optional)"}}) == []
+
+
+def test_a_group_of_one_setting_is_a_warning():
+    assert schema_warnings({"a": {"type": "string", "default": "", "group": "Advanced"},
+                            "b": {"type": "string", "default": "", "group": "Advanced"}}) == []
+    warnings = schema_warnings({"a": {"type": "string", "default": "", "group": "Advanced"},
+                                "b": {"type": "string", "default": ""}})
+    assert len(warnings) == 1 and warnings[0].startswith("a:")

@@ -265,8 +265,8 @@ def test_validate_checks_requires_mirrordash():
         runner.invoke(main, ["create-module", "mirrordash-test"])
         schema_file = Path("mirrordash-test/mirrordash_test/config_schema.json")
         schema = json.loads(schema_file.read_text())
-        assert schema["requires_mirrordash"] == "0.14"
-        assert "requires_mirrordash: MirrorDash 0.14 or newer" in runner.invoke(main, ["validate", "mirrordash-test"]).output
+        assert schema["requires_mirrordash"] == "0.21"
+        assert "requires_mirrordash: MirrorDash 0.21 or newer" in runner.invoke(main, ["validate", "mirrordash-test"]).output
         for bad in (">=0.12", 12, "latest"):
             schema_file.write_text(json.dumps({**schema, "requires_mirrordash": bad}))
             result = runner.invoke(main, ["validate", "mirrordash-test"])

@@ -115,7 +115,11 @@ Provide a `config_schema.json` next to `plugin.py` to allow the user to modify s
 - Rules on what the owner types are plain JSON Schema keywords: `required` (beside `properties`, and in a list setting's `items`), `minimum`/`maximum`, `minLength`/`maxLength`, `pattern` (matches the whole value) with `pattern_message` (the words for the owner). The browser and the save check them (MirrorDash 0.13).
 - A Lucide icon name gets `"format": "icon"`: the admin page suggests names as the owner types and draws the icon (MirrorDash 0.11.0; older shows a text field).
 - Files the owner uploads (photos) get `"format": "files"` with `"accept": "image"` (no `type`, no `default`); nothing goes into `config`, the module reads them from its cache folder (MirrorDash 0.12).
-- Don't declare `instance_name`, `enabled`, `position`, `carousel_group`, `carousel_interval`, `max_width`, `max_height`, `z_index`, `opacity`, `show_in_privacy` or `schedule`: the core adds them to every module.
+- Don't declare `instance_name`, `enabled`, `position`, `carousel_group`, `carousel_interval`, `show_in_privacy` or `schedule`: the core adds them to every module. `max_width`, `max_height`, `z_index` and `opacity` no longer exist (validate fails): use the core's `width_percent`, `height_percent`, `opacity_percent`.
+- The core draws "Show heading" and "Heading text" (`show_header`, `heading`) and the size settings (`width_percent`, `height_percent`, `opacity_percent`; MirrorDash 0.21). Templates write `{% if show_header %}<h2 class="module-header">{{ heading or translations.title }}</h2>{% endif %}`. To change a default, name the key in the schema with only a `default`: `"show_header": {"default": false}`, `"width_percent": {"default": 60}`.
+- Cards are capped (Auto: 1/3 of the usable screen's width, 1/2 of its height; overflow fades). Module CSS adapts: `max-width: 100%`, no fixed px widths; container queries / `cqi` only when the card has a definite width (give it a `width_percent` default).
+- `"unit": "s"` (`"s"`, `"min"`, `"h"`, `"%"`) puts the unit after a number; never in the title. `"min_label": "Auto"` on a slider names its minimum. `"show_if": {"source": {"not": [""]}}` shows a setting while another is none of the values. `items.title` ("Station") names a list's add button.
+- Vocabulary: the look setting is `layout` titled "Look"; secrets are titled "API key" / "Access token"; no one-setting groups.
 - `self.render_template` / `self.translate` don't exist yet inside `__init__`; use them from `render` or `run_loop`.
 
 ---
