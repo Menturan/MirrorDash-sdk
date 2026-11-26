@@ -4,6 +4,10 @@ Mirrors offer a module's newest GitHub Release, and show the version in its pypr
 sets both from one number, so they never differ: version in pyproject.toml, commit, tag vX.Y.Z,
 push, the GitHub Release and the `mirrordash-module` topic on the repository, which mirrors search for
 (with the `gh` tool, or what to do by hand).
+
+A version like 1.10.0rc1 (a1, b1, rc1) is a test version: it becomes a GitHub pre-release, which mirrors
+only offer when the owner switches on "Test versions" in that module's settings. Versions are compared
+as PEP 440 does (1.10.0rc1 < 1.10.0), with a small parser here so the SDK needs no extra dependency.
 """
 import re
 import shutil
@@ -24,11 +28,21 @@ class Stop(click.ClickException):
         return f"Stopped: {self.message}"
 
 
-def parse(version: str) -> tuple[int, int, int]:
-    match = re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)", version)
+VERSION = re.compile(r"v?(\d+)\.(\d+)\.(\d+)(?:(a|b|rc)(\d+))?")
+STAGES = {"a": 0, "b": 1, "rc": 2}
+
+
+def parse(version: str) -> tuple[int, int, int, int, int]:
+    """A sortable key in PEP 440 order: X.Y.ZaN < X.Y.ZbN < X.Y.ZrcN < X.Y.Z."""
+    match = VERSION.fullmatch(version)
     if not match:
-        raise Stop(f"'{version}' isn't a version like 1.2.3.")
-    return tuple(int(n) for n in match.groups())
+        raise Stop(f"'{version}' isn't a version like 1.2.3 or a test version like 1.2.3rc1 (a1, b1 or rc1).")
+    major, minor, patch, stage, number = match.groups()
+    return int(major), int(minor), int(patch), STAGES.get(stage, 3), int(number or 0)
+
+
+def is_prerelease(version: str) -> bool:
+    return parse(version)[3] < 3
 
 
 def release_module(path: Path, version: str | None, dry_run: bool = False) -> None:
@@ -63,12 +77,18 @@ def release_module(path: Path, version: str | None, dry_run: bool = False) -> No
     def tagged(v):
         return bool(run("git", "tag", "--list", f"v{v}") or run("git", "ls-remote", "--tags", "origin", f"v{v}", check=False))
 
-    suggestion = current if not tagged(current) else f"{now[0]}.{now[1]}.{now[2] + 1}"
+    if not tagged(current):
+        suggestion = current
+    elif is_prerelease(current):
+        suggestion = f"{now[0]}.{now[1]}.{now[2]}"  # the final version of that test version
+    else:
+        suggestion = f"{now[0]}.{now[1]}.{now[2] + 1}"
     version = (version or click.prompt(f"Current version {current}. Release version", default=suggestion)).lstrip("v")
     new = parse(version)
     if new < now or tagged(version):
         raise Stop(f"{version} is already released or lower than {current}; choose a higher version.")
     tag = f"v{version}"
+    test_version = is_prerelease(version)
 
     # 3. Check the module and run its tests before anything changes
     if not validate_module(str(root), exit_on_fail=False):
@@ -77,7 +97,11 @@ def release_module(path: Path, version: str | None, dry_run: bool = False) -> No
         click.echo("Running the tests...")
         if subprocess.run(["uv", "run", "--quiet", "pytest", "-q"], cwd=root).returncode != 0:
             raise Stop("the tests failed.")
-    if not dry_run and not click.confirm(f"Release {tag}?", default=False):
+    question = (
+        f"Release {tag} as a test version (pre-release)? Only mirrors with Test versions on for this module are offered it."
+        if test_version else f"Release {tag}?"
+    )
+    if not dry_run and not click.confirm(question, default=False):
         raise Stop("nothing was changed.")
 
     # 4. Version, commit, push, tag, release
@@ -96,15 +120,19 @@ def release_module(path: Path, version: str | None, dry_run: bool = False) -> No
 
     repo_url = re.sub(r"\.git$", "", remote.replace("git@github.com:", "https://github.com/"))
     if dry_run:
-        click.echo(f"\nDry run: nothing was changed. Without --dry-run this releases {tag}.")
+        click.echo(f"\nDry run: nothing was changed. Without --dry-run this releases {tag}{' as a test version (pre-release)' if test_version else ''}.")
     elif shutil.which("gh"):
-        run("gh", "release", "create", tag, "--title", tag, "--generate-notes", change=True)
-        click.echo(f"\n{tag} is released. Mirrors offer it as an update on the module's card.")
+        run("gh", "release", "create", tag, "--title", tag, "--generate-notes", *(["--prerelease"] if test_version else []), change=True)
+        if test_version:
+            click.echo(f"\n{tag} is released as a test version. Mirrors with Test versions on for this module offer it.")
+        else:
+            click.echo(f"\n{tag} is released. Mirrors offer it as an update on the module's card.")
         try:  # idempotent; the release is out already, so a failure here only asks for the step by hand
             run("gh", "repo", "edit", "--add-topic", TOPIC, change=True)
         except Stop:
             click.echo(f"The topic '{TOPIC}' couldn't be set. {BY_HAND}")
     else:
         click.echo(f"\n{tag} is pushed. Last step, the GitHub Release (mirrors only see releases):")
-        click.echo(f"  open {repo_url}/releases/new?tag={tag} and press 'Publish release'.")
+        click.echo(f"  open {repo_url}/releases/new?tag={tag} and press 'Publish release'"
+                   + (", after ticking 'Set as a pre-release' (it is a test version)." if test_version else "."))
         click.echo(f"And the topic mirrors search for: {BY_HAND}")

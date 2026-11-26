@@ -50,7 +50,11 @@ def validate_cmd(path):
 @click.option("--dry-run", is_flag=True, help="Show what it would do, change nothing")
 def release_cmd(version, path, dry_run):
     """Release a new version of the module, e.g. `release 1.0.2`: sets it in pyproject.toml, tags it,
-    pushes and makes the GitHub Release that mirrors install from."""
+    pushes and makes the GitHub Release that mirrors install from.
+
+    A version ending in aN, bN or rcN (e.g. `release 1.10.0rc1`) is a test version: it becomes a GitHub
+    pre-release. Mirrors only offer it when the owner switches on "Test versions" in that module's
+    settings (under "Applies to the whole module"). A plain X.Y.Z is a normal release."""
     release_module(path, version, dry_run)
 
 @main.command("register")

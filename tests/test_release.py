@@ -5,6 +5,7 @@ import pytest
 from click.testing import CliRunner
 
 from mirrordash_sdk.cli import main
+from mirrordash_sdk.release import Stop, parse
 from mirrordash_sdk.scaffolder import create_module
 
 
@@ -79,3 +80,65 @@ def test_release_with_gh_creates_the_release_and_sets_the_topic(module, monkeypa
     fail = True  # a failing topic doesn't undo the release: it says what to do by hand
     result = release(module, "1.0.1")
     assert result.exit_code == 0 and "is released" in result.output and "Topics" in result.output
+
+
+@pytest.mark.parametrize("version", ["1.2.3", "v1.2.3", "1.10.0rc1", "v1.0.0a2", "1.0.0b10"])
+def test_parse_accepts_plain_and_pep440_pre_releases(version):
+    parse(version)
+
+
+@pytest.mark.parametrize("version", ["1.0", "1.0.0rc", "1.0.0-rc1", "1.0.0.rc1", "1.0.0c1", "1.0.0dev1", "1.0.0rc1.post1", "x"])
+def test_parse_rejects_other_versions(version):
+    with pytest.raises(Stop):
+        parse(version)
+
+
+def test_parse_orders_like_pep440():
+    ordered = ["1.9.0", "1.10.0a1", "1.10.0b1", "1.10.0rc1", "1.10.0rc2", "1.10.0", "1.10.1"]
+    assert [parse(v) for v in ordered] == sorted(parse(v) for v in ordered)
+    assert parse("v1.10.0rc1") == parse("1.10.0rc1") > parse("1.9.0")
+
+
+def test_dry_run_of_a_test_version_says_so(module):
+    result = release(module, "1.0.0rc1", "--dry-run")
+    assert result.exit_code == 0, result.output
+    assert "[dry run] set version 0.1.0 -> 1.0.0rc1" in result.output
+    assert "releases v1.0.0rc1 as a test version (pre-release)" in result.output
+    assert git(module, "tag") == ""
+
+
+def test_test_version_by_hand_and_ordering(module):
+    result = release(module, "1.0.0rc1", answer="n\n")
+    assert "Release v1.0.0rc1 as a test version (pre-release)? Only mirrors with Test versions on" in result.output
+    assert result.exit_code != 0 and git(module, "tag") == ""
+
+    result = release(module, "1.0.0rc1")
+    assert result.exit_code == 0, result.output
+    assert 'version = "1.0.0rc1"' in (module / "pyproject.toml").read_text()
+    assert git(module, "tag") == "v1.0.0rc1"
+    assert "Set as a pre-release" in result.output
+
+    assert release(module, "1.0.0rc2").exit_code == 0  # later test version
+    assert release(module, "1.0.0").exit_code == 0  # final after its test versions
+    result = release(module, "1.0.0rc3")  # a test version after the final is refused
+    assert result.exit_code != 0 and "choose a higher version" in result.output
+
+
+@pytest.mark.parametrize("version, prerelease", [("1.0.0rc1", True), ("1.0.0", False)])
+def test_gh_gets_prerelease_only_for_test_versions(module, monkeypatch, version, prerelease):
+    calls = []
+    real_run = subprocess.run
+
+    def fake_run(cmd, **kwargs):
+        if cmd[0] == "gh":
+            calls.append(cmd)
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+        return real_run(cmd, **kwargs)
+
+    monkeypatch.setattr("mirrordash_sdk.release.shutil.which", lambda cmd: "/usr/bin/" + cmd)
+    monkeypatch.setattr("mirrordash_sdk.release.subprocess.run", fake_run)
+    result = release(module, version)
+    assert result.exit_code == 0, result.output
+    create = next(c for c in calls if c[:3] == ("gh", "release", "create"))
+    assert ("--prerelease" in create) is prerelease
+    assert ("is released as a test version. Mirrors with Test versions on for this module offer it." in result.output) is prerelease

@@ -1270,6 +1270,12 @@ under **Modules → Add modules → Install from a Git URL or folder**.
 `pyproject.toml` to the same number as the tag, so the mirror shows the version you released. Mirrors
 offer the update on the module's card. (`--dry-run` shows what it would do without changing anything.)
 
+**A test version:** a version ending in `aN`, `bN` or `rcN`, such as `uvx mirrordash-sdk release 1.10.0rc1`,
+becomes a GitHub **pre-release** (the version number decides; `1.10.0rc1` sorts before `1.10.0`). Mirrors
+only offer it when the owner switches on **Test versions** in that module's settings, under **Applies to
+the whole module**. Everyone else keeps getting the newest normal release. Without `gh`, tick **Set as a
+pre-release** on the GitHub release page.
+
 **The README** is the user's manual. It should say what the module shows, step by step how to get any
 API key it needs and where to enter it, and show a `screenshot.png` (GitHub shows it on the module's
 page).
