@@ -56,7 +56,20 @@ def schema_errors(properties: dict, path: str = "") -> list[str]:
         items = prop.get("items")
         if isinstance(items, dict) and isinstance(items.get("properties"), dict):
             errors += schema_errors(items["properties"], f"{name}[].")
+        if isinstance(items, dict) and "enum_source" in items and (problem := _enum_source_problem(prop, items)):
+            errors.append(f"{name}: {problem}")
     return errors
+
+
+def _enum_source_problem(prop: dict, items: dict) -> str | None:
+    """Why items.enum_source (MirrorDash 0.21.1) is wrong: only "installed_modules", on a string array, with no enum."""
+    if items["enum_source"] != "installed_modules":
+        return f"items.enum_source must be \"installed_modules\", not {items['enum_source']!r}"
+    if prop.get("type") != "array" or items.get("type") != "string":
+        return "items.enum_source works on \"type\": \"array\" with items of \"type\": \"string\""
+    if "enum" in items:
+        return "items.enum_source fills items.enum itself; remove the literal enum"
+    return None
 
 
 def preferred_width_problem(value) -> str | None:

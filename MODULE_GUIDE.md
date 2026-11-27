@@ -642,6 +642,7 @@ another value (MirrorDash 0.14 or newer), so write each default once, in the sch
 | Yes or no | `"type": "boolean"` | a switch |
 | One of a few choices | `"enum": ["list", "grid"], "enum_titles": ["Rows", "Side by side"]` | a dropdown |
 | Several of a few choices | `"type": "array", "items": {"type": "string", "enum": [...]}` | boxes to tick |
+| Several of the installed modules | `"type": "array", "items": {"type": "string", "enum_source": "installed_modules"}` (no `enum`; MirrorDash 0.21.1) | boxes to tick, one per other installed module, by its title; the value is its package name (`mirrordash_x`). Modules installed later are unticked; one that is uninstalled drops out of the saved value |
 | A list the owner fills in | `"type": "array", "items": {"type": "object", "title": "Station", "properties": {...}}` | rows to add, fold and move, each with any box in this table (not files); `items.title` names the button ("Add station") |
 | A secret (key, token) | `"format": "password"` | dots, with Show |
 | An address at home | `"format": "lan-url"` | a box; your module may reach only these addresses at home |
@@ -969,6 +970,15 @@ event_bus.publish("mirrordash_garage.door", {"open": True}, public=True)
 - `data` is JSON: a dict, a list, text or numbers, up to 64 kB. Every module can read it, so never put
   a key or a password in it.
 - Up to 20 a second; more are dropped.
+
+**Listening to one message from every module.** Subscribe to `*.<event>` (MirrorDash 0.21.1) to get the
+event named `<event>` from every module, without knowing their package names: `event_bus.subscribe("*.heads_up", self.on_heads_up)`
+gets `mirrordash_garage.heads_up`, `mirrordash_x.heads_up` and so on. The `*` stands for exactly one
+package name, so `a.b.heads_up` does not match, and no other wildcard works (`*` alone, `a.*`).
+Use it only when the message means the same from any sender. Whoever can publish it can reach your module, so
+check the data as for any other message, and let the owner limit who is heard: a switch "Any module may
+send" and, while it is off, boxes of the installed modules (`"enum_source": "installed_modules"` above), then
+subscribe to the exact `<package>.<event>` of each ticked one.
 
 **Readings: a shared shape for measurements.** Modules can swap measurements without knowing each
 other, if they all use the same shape:
@@ -1342,7 +1352,7 @@ call as written here, with `url`, from the version after 0.16), `router`, `api_p
 `exposes`, `expose` and `on_control` 0.10.0, `"format": "icon"` 0.11.0 (an older mirror shows a plain text
 field), `answer.headers`, `"preview"`, `"format": "files"`, the `background` and `foreground` positions
 (`--md-layer-size`), `on_shown` and sound 0.12 (sound with the OS image after 0.11.0), the rules on what is typed, `"format": "list"` and `"search"` 0.13 (an older
-mirror shows an empty group for the last two), `"shared": true` 0.19 (an older mirror shows the setting in each instance's form, as any other), `"format": "fields"` 0.19 (an older mirror shows an empty group), `heading`, `show_header` as a core setting (a module's default for them) and the card size settings 0.21 (an older mirror draws no heading setting, so the template shows no custom text); `"unit"` and `"min_label"` and the `{"not": [...]}` form of `show_if` need no minimum, an older mirror ignores them; `mirrordash-sdk dev-setup` installs
+mirror shows an empty group for the last two), `"shared": true` 0.19 (an older mirror shows the setting in each instance's form, as any other), `"format": "fields"` 0.19 (an older mirror shows an empty group), `enum_source` and listening to `*.<event>` 0.21.1 (an older mirror shows no boxes and the wildcard hears nothing), `heading`, `show_header` as a core setting (a module's default for them) and the card size settings 0.21 (an older mirror draws no heading setting, so the template shows no custom text); `"unit"` and `"min_label"` and the `{"not": [...]}` form of `show_if` need no minimum, an older mirror ignores them; `mirrordash-sdk dev-setup` installs
 the right version.
 
 **Say which MirrorDash your module needs.** When you use something from this list, put the oldest MirrorDash

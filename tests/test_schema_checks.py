@@ -135,3 +135,30 @@ def test_preferred_width_is_a_positive_number_of_rem():
         assert preferred_width_problem(good) is None
     for bad in ("28", "28px", "0rem", "-3rem", "rem", "28 rem", 28, None, "1/3"):
         assert "preferred_width" in preferred_width_problem(bad)
+
+
+def _modules_box(**items):
+    return {"senders": {"type": "array", "default": [], "items": {"type": "string", **items}}}
+
+
+def test_enum_source_installed_modules_is_accepted_on_a_string_array():
+    properties = _modules_box(enum_source="installed_modules")
+    assert schema_errors(properties) == []
+    assert schema_warnings(properties) == []
+
+
+def test_enum_source_with_another_value_is_an_error():
+    assert schema_errors(_modules_box(enum_source="all_modules")) == [
+        "senders: items.enum_source must be \"installed_modules\", not 'all_modules'"]
+
+
+def test_enum_source_beside_a_literal_enum_is_an_error():
+    errors = schema_errors(_modules_box(enum_source="installed_modules", enum=["a"]))
+    assert len(errors) == 1 and "remove the literal enum" in errors[0]
+
+
+def test_enum_source_needs_an_array_of_strings():
+    not_array = {"x": {"type": "string", "items": {"type": "string", "enum_source": "installed_modules"}}}
+    not_strings = {"x": {"type": "array", "items": {"type": "integer", "enum_source": "installed_modules"}}}
+    assert len(schema_errors(not_array)) == 1
+    assert len(schema_errors(not_strings)) == 1
